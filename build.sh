@@ -1,10 +1,10 @@
 
 PROJECT_NAME=gpuacademy_sat
-#: ${DEPS_DIR=.}
 
 
+DEPS_DIR="C:/work/vs2017-x64"
 if [[ "$OSTYPE" == "msys" ]]; then
-	GENERATE_PROJECT_TYPE="Visual Studio 15 2017"
+	GENERATE_PROJECT_TYPE="Visual Studio 15 2017 Win64"
 	BUILD_PATH="build"
 else
 	GENERATE_PROJECT_TYPE="Eclipse CDT4 - Unix Makefiles"
