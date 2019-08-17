@@ -1,11 +1,23 @@
 
+PROJECT_NAME=gpuacademy_sat
+#: ${DEPS_DIR=.}
 
-: ${DEPS_DIR=.}
+
+if [[ "$OSTYPE" == "msys" ]]; then
+	GENERATE_PROJECT_TYPE="Visual Studio 15 2017"
+	BUILD_PATH="build"
+else
+	GENERATE_PROJECT_TYPE="Eclipse CDT4 - Unix Makefiles"
+	BUILD_PATH="../${PROJECT_NAME}-build"
+fi
+echo "Generating \"${GENERATE_PROJECT_TYPE}\""
+echo "Build path: ${BUILD_PATH}"
+
 export MAKEFLAGS=-j6
-cmake -H. -B../HelloCuda-build \
+cmake -H. -B${BUILD_PATH} \
     -DCMAKE_CXX_STANDARD=11 \
-    -G"Eclipse CDT4 - Unix Makefiles" \
+    -G"${GENERATE_PROJECT_TYPE}" \
     -DCMAKE_INSTALL_PREFIX=${DEPS_DIR} \
     -DCMAKE_PREFIX_PATH="${DEPS_DIR}" \
     -DCMAKE_BUILD_TYPE=Debug
-cmake --build ../HelloCuda-build --target install
+cmake --build ${BUILD_PATH} --target install

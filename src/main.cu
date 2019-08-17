@@ -1,45 +1,67 @@
-#include <stdio.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-const int N = 16; 
-const int blocksize = 16; 
+#include <iostream>
 
-__global__
-void hello(char *a, int *b) {
-    printf("before: %c", a[threadIdx.x]);
-    a[threadIdx.x] += b[threadIdx.x];
-    printf("after: %c", a[threadIdx.x]);
+__global__ void copy(const unsigned char* input_image, int image_width_px, unsigned char* output_image) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    output_image[row * image_width_px + col] = 255 - input_image[row * image_width_px + col];
 }
 
 
-int main()
-{
-    char a[N] = "Hello \0\0\0\0\0\0";
-    int b[N] = {15, 10, 6, 0, -11, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-    char *ad;
-    int *bd;
-    const int csize = N*sizeof(char);
-    const int isize = N*sizeof(int);
-
-    printf("%s\n", a);
-
-    cudaMalloc((void**)&ad, csize);
-    cudaMalloc((void**)&bd, isize);
-    cudaMemcpy( ad, a, csize, cudaMemcpyHostToDevice); 
-    cudaMemcpy( bd, b, isize, cudaMemcpyHostToDevice); 
-
-    dim3 dimBlock(blocksize, 1);
-    dim3 dimGrid(1, 1);
-    hello<<<dimGrid, dimBlock>>>(ad, bd);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) 
-        printf("Error: %s\n", cudaGetErrorString(err));
+int main() {
+    
+    cv::Mat input_image = cv::imread("/home/user/Dropbox/Kristof-online/workspace/AimGpuAcademy/res/hip-hop.png", cv::IMREAD_COLOR);
+    //cv::imshow("Input image", input_image);
+    //cv::waitKey(0);
+    
+    unsigned char* d_inputimagedata;
+    unsigned char* d_outputimagedata;
+    unsigned char* h_outputimagedata;
+    const int image_data_size_bytes = input_image.cols * input_image.rows * input_image.channels() * sizeof(unsigned char);
+    cudaMalloc((void**)&d_inputimagedata, image_data_size_bytes);
+    cudaMemcpy(d_inputimagedata, input_image.data, image_data_size_bytes, cudaMemcpyHostToDevice); 
+    cudaMalloc((void**)&d_outputimagedata, image_data_size_bytes);
+    
+    dim3 grid_dim(40, 135);
+    dim3 block_dim(32, 16);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    cudaEventRecord(start);
+    const int n_kernel_runs = 1000;
+    #pragma omp parallel for
+    for (int i = 0; i < n_kernel_runs; ++i) {
+        copy<<<grid_dim, block_dim>>>(d_inputimagedata, input_image.cols, d_outputimagedata);
+    }
     cudaDeviceSynchronize();
-    cudaMemcpy(a, ad, csize, cudaMemcpyDeviceToHost); 
-    cudaFree(ad);
-    cudaFree(bd);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cout << "Error: %s\n" << cudaGetErrorString(err) << std::endl;
+    }
+    
+    float exec_time_ms = 0;
+    cudaEventElapsedTime(&exec_time_ms, start, stop);
+    exec_time_ms /= static_cast<float>(n_kernel_runs);
+    std::cout << "Kernel execution time [ms]: " << exec_time_ms << std::endl;
+    
+    h_outputimagedata = (unsigned char*) malloc(image_data_size_bytes);
+    cudaMemcpy(h_outputimagedata, d_outputimagedata, image_data_size_bytes, cudaMemcpyDeviceToHost); 
+    cv::Mat output_image(input_image.rows, input_image.cols, CV_8UC3, h_outputimagedata);
 
-    printf("%s\n", a);
+    cudaFree(d_inputimagedata);
+    cudaFree(d_outputimagedata);
+
+    cv::imwrite("/home/user/Dropbox/Kristof-online/workspace/AimGpuAcademy/out.png", output_image);
+    cv::imshow("Output image", output_image);
+    cv::waitKey(0);
+    
     return 0;
-
 }
