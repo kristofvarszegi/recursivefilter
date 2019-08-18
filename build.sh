@@ -1,5 +1,5 @@
 
-PROJECT_NAME=gpuacademy_sat
+PROJECT_NAME=gpuacademy_recursivefiltering
 
 
 DEPS_DIR="C:/work/vs2017-x64"
