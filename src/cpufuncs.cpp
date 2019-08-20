@@ -20,6 +20,10 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 
 	clock_t t = clock();
 	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
+		if (i_row % 50 == 0) {
+			Logger::new_line("Calculating row " + std::to_string(i_row + 1)
+				+ "/" + std::to_string(input_table.num_rows()) + "...");
+		}
 		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
 			for (int i_row_this = 0; i_row_this <= i_row; ++i_row_this) {
 				for (int i_col_this = 0; i_col_this <= i_col; ++i_col_this) {
@@ -29,8 +33,10 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 		}
 	}
 	t = clock() - t;
-	//Logger::new_line("Execution time of \"calculate_summedaretable_cpu_naive\" [ms]: "
-	//	+ to_ms_str(t));
+	Logger::new_line("Execution time of \"calculate_summedaretable_cpu_naive\" for "
+		+ std::to_string(input_table.num_cols()) + "x" + std::to_string(input_table.num_rows())
+		+ " [ms]: " + to_ms_str(t));
+	Logger::new_line();
 }
 
 /*void calculate_summedareatable_cpu_2dwise(const float* input_table, int num_rows, int num_cols, float* output_table) {
@@ -55,15 +61,12 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 }*/
 
 void apply_right_down_recursive_filter_cpu(const CpuTable& input_table,
-	const float* filter_coeffs, int num_filter_coeffs, CpuTable& output_table) {
+	const float* filter_coeffs, CpuTable& output_table) {
 	if (input_table.num_rows() != output_table.num_rows()) {
 		throw std::runtime_error("Number of table rows must match");
 	}
 	if (input_table.num_cols() != output_table.num_cols()) {
 		throw std::runtime_error("Number of table cols must match");
-	}
-	if (num_filter_coeffs != 2) {
-		throw std::runtime_error("Filter must have 2 coeffs");
 	}
 
 	clock_t t = clock();

@@ -42,7 +42,7 @@ TEST(recursivefiltering, apply_recursive_filter_cpu) {
 	t = clock();
 	CpuTable summed_area_table(n_rows, n_cols);
 	apply_right_down_recursive_filter_cpu(input_table, kSatFilterCoeffs,
-		sizeof(kSatFilterCoeffs) / sizeof(float), summed_area_table);
+		summed_area_table);
 	//Logger::new_line("Time spent on \"apply_recursive_filter_cpu\" [ms]: " + to_ms_str(t));
 
 	ASSERT_TRUE(reference_table.equals(summed_area_table, kEpsilon));

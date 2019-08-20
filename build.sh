@@ -1,4 +1,4 @@
-PROJECT_NAME=gpuacademy_recursivefiltering
+PROJECT_NAME=gpuacademy_recursivefilter
 
 DEPS_DIR="C:/work/vs2017-x64"
 if [[ "$OSTYPE" == "msys" ]]; then
@@ -15,7 +15,6 @@ export MAKEFLAGS=-j6
 cmake -H. -B${BUILD_PATH} \
     -DCMAKE_CXX_STANDARD=11 \
     -G"${GENERATE_PROJECT_TYPE}" \
-#    -DCMAKE_INSTALL_PREFIX=${DEPS_DIR}
     -DCMAKE_PREFIX_PATH="${DEPS_DIR}" \
     -DCMAKE_BUILD_TYPE=Debug
 cmake --build ${BUILD_PATH} --target install

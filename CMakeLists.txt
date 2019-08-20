@@ -1,22 +1,21 @@
 cmake_minimum_required(VERSION 2.8)
-project(recursivefiltering)
+project(recursivefilter)
 
 enable_testing()
 
 ################################################################################
 
 find_package(CUDA REQUIRED)
-message("CUDA_NVCC_FLAGS before:" ${CUDA_NVCC_FLAGS})
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -use_fast_math)
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -use_fast_math "--ptxas-options=-v")
 
 set(LIB_NAME ${CMAKE_PROJECT_NAME})
 
 set(HEADERS
-    include/recursivefiltering/cpufuncs.hpp
-    include/recursivefiltering/CpuTable.hpp
-    include/recursivefiltering/gpufuncs.hpp
-    include/recursivefiltering/Logger.hpp
-    include/recursivefiltering/utils.hpp
+    include/${LIB_NAME}/cpufuncs.hpp
+    include/${LIB_NAME}/CpuTable.hpp
+    include/${LIB_NAME}/gpufuncs.hpp
+    include/${LIB_NAME}/Logger.hpp
+    include/${LIB_NAME}/utils.hpp
 )
 set(SOURCES
     src/cpufuncs.cpp
@@ -26,7 +25,7 @@ set(SOURCES
     src/utils.cpp
 )
 cuda_add_library(${LIB_NAME} ${HEADERS} ${SOURCES})
-target_include_directories(${LIB_NAME} PUBLIC include/recursivefiltering)
+target_include_directories(${LIB_NAME} PUBLIC include/${LIB_NAME})
 set_target_properties(${LIB_NAME} PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 install(TARGETS ${LIB_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin)
@@ -44,7 +43,7 @@ install(DIRECTORY include/ DESTINATION include)
 
 find_package(GTest REQUIRED)
 
-set(TEST_NAME ${LIB_NAME}_tests)
+set(TEST_NAME test_${LIB_NAME})
 
 add_executable(${TEST_NAME}
     ${HEADERS}
@@ -52,7 +51,7 @@ add_executable(${TEST_NAME}
     test/test_cpufuncs.cpp
     test/test_gpufuncs.cpp
 )
-target_include_directories(${TEST_NAME} PUBLIC include/recursivefiltering)
+target_include_directories(${TEST_NAME} PUBLIC include/${LIB_NAME})
 target_link_libraries(${TEST_NAME}
     ${LIB_NAME}
     GTest::Main
@@ -62,3 +61,5 @@ add_test(
     ${TEST_NAME}
     COMMAND ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME}
 )
+
+install(TARGETS ${TEST_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/bin)
