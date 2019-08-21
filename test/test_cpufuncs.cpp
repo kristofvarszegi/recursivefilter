@@ -1,5 +1,7 @@
 #include "gtest/gtest.h"
 
+#include "helpers.hpp"
+
 #include "gpufuncs.hpp"
 #include "cpufuncs.hpp"
 #include "utils.hpp"
@@ -7,43 +9,67 @@
 
 using namespace gpuacademy;
 
-const static float kEpsilon = 0.000001f;
-const static float kSatFilterCoeffs[] = { 1.0f, 1.0f };
-
 TEST(recursivefiltering, calculate_summedareatable_cpu_naive) {
-	clock_t t;
-	const int n_rows = 3;
-	const int n_cols = 4;
-	const CpuTable input_table(n_rows, n_cols, 1.0f);
-	const float reference_table_data[] = { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 4.0f, 6.0f, 8.0f, 3.0f, 6.0f, 9.0f, 12.0f, 4.0f, 8.0f, 12.0f, 16.0f };
-	CpuTable reference_table(n_rows, n_cols);
+	const int n_rows = 6, n_cols = 6;
+	const int input_data[] = {
+		1, 0, 0, 1, 1, 1,
+		2, 1, 1, 1, 2, 1,
+		1, 2, 1, 2, 0, 1,
+		1, 1, 0, 1, 1, 2,
+		0, 1, 2, 1, 2, 1,
+		1, 0, 1, 0, 1, 1
+	};
+	CpuTable input(n_rows, n_cols);
 	for (int i_row = 0; i_row < n_rows; ++i_row) {
 		for (int i_col = 0; i_col < n_cols; ++i_col) {
-			reference_table.set(i_row, i_col, reference_table_data[i_col + i_row * n_cols]);
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
 		}
 	}
-	t = clock();
+
+	const int ground_truth_data[] = {
+		 1,  1,  1,  2,  3,  4,
+		 3,  4,  5,  7, 10, 12,
+		 4,  7,  9, 13, 16, 19,
+		 5,  9, 11, 16, 20, 25,
+		 5, 10, 14, 20, 26, 32,
+		 6, 11, 16, 22, 29, 36
+	};
+	CpuTable ground_truth(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			ground_truth.set(i_row, i_col, static_cast<float>(ground_truth_data[i_col + i_row * n_cols]));
+		}
+	}
+
 	CpuTable summed_area_table(n_rows, n_cols);
-	calculate_summedareatable_cpu_naive(input_table, summed_area_table);
-	//Logger::new_line(to_string(summed_area_table, n_rows, n_cols));
-	//Logger::new_line("Time spent on \"calculate_summedareatable_cpu_naive\" [ms]: " + to_ms_str(t));
-	//Logger::new_line();
-	ASSERT_TRUE(reference_table.equals(summed_area_table, kEpsilon));
+	calculate_summedareatable_cpu_naive(input, summed_area_table);
+
+	ASSERT_TRUE(ground_truth.equals(summed_area_table, kEpsilon));
 }
 
 TEST(recursivefiltering, apply_recursive_filter_cpu) {
-	clock_t t;
-	int n_rows = 128;
-	int n_cols = 64;
-	const CpuTable input_table(n_rows, n_cols, 1.0f);
-	CpuTable reference_table(n_rows, n_cols);
-	calculate_summedareatable_cpu_naive(input_table, reference_table);
+	const int n_rows = 6, n_cols = 6;
+	const int input_data[] = {
+		1, 0, 0, 1, 1, 1,
+		2, 1, 1, 1, 2, 1,
+		1, 2, 1, 2, 0, 1,
+		1, 1, 0, 1, 1, 2,
+		0, 1, 2, 1, 2, 1,
+		1, 0, 1, 0, 1, 1
+	};
+	CpuTable input(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
+		}
+	}
 
-	t = clock();
+	CpuTable ground_truth(n_rows, n_cols);
+	calculate_summedareatable_cpu_naive(input, ground_truth);
+
 	CpuTable summed_area_table(n_rows, n_cols);
-	apply_right_down_recursive_filter_cpu(input_table, kSatFilterCoeffs,
-		summed_area_table);
-	//Logger::new_line("Time spent on \"apply_recursive_filter_cpu\" [ms]: " + to_ms_str(t));
+	apply_right_down_recursive_filter_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], summed_area_table);
 
-	ASSERT_TRUE(reference_table.equals(summed_area_table, kEpsilon));
+	ASSERT_TRUE(ground_truth.equals(summed_area_table, kEpsilon));
 }

@@ -43,6 +43,16 @@ void CpuTable::set(const float* data) {
 	memcpy(data_, data, num_rows_ * num_cols_ * sizeof(float));
 }
 
+void CpuTable::setIncreasing(float first_value, float increment) {
+	float val = first_value;
+	for (int i_row = 0; i_row < num_rows_; ++i_row) {
+		for (int i_col = 0; i_col < num_cols_; ++i_col) {
+			set(i_row, i_col, val);
+			val += increment;
+		}
+	}
+}
+
 /*CpuTable& CpuTable::operator=(const CpuTable& other_table) {
 	if (this != &other_table) {
 		if (data_ != NULL) {
@@ -77,7 +87,7 @@ std::string CpuTable::toString() const {
 	for (int i_row = 0; i_row < num_rows_; ++i_row) {
 		ss << std::endl;
 		for (int i_col = 0; i_col < num_cols_; ++i_col) {
-			ss << std::setw(6) << data_[i_col + i_row * num_cols_];
+			ss << std::setw(9) << data_[i_col + i_row * num_cols_];
 		}
 	}
 	return ss.str();

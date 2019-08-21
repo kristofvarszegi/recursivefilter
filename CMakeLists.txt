@@ -48,7 +48,9 @@ set(TEST_NAME test_${LIB_NAME})
 add_executable(${TEST_NAME}
     ${HEADERS}
     test/main.cpp
+    test/helpers.hpp test/helpers.cpp
     test/test_cpufuncs.cpp
+    test/test_CpuTable.cpp
     test/test_gpufuncs.cpp
 )
 target_include_directories(${TEST_NAME} PUBLIC include/${LIB_NAME})

@@ -61,7 +61,7 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 }*/
 
 void apply_right_down_recursive_filter_cpu(const CpuTable& input_table,
-	const float* filter_coeffs, CpuTable& output_table) {
+	float filter_coeff_0, float filter_coeff_1, CpuTable& output_table) {
 	if (input_table.num_rows() != output_table.num_rows()) {
 		throw std::runtime_error("Number of table rows must match");
 	}
@@ -73,18 +73,18 @@ void apply_right_down_recursive_filter_cpu(const CpuTable& input_table,
 	CpuTable rowwise_sum_table(input_table.num_rows(), input_table.num_cols());
 	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
 		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
-			rowwise_sum_table.set(i_row, i_col, filter_coeffs[0] * input_table.get(i_row, i_col));
+			rowwise_sum_table.set(i_row, i_col, filter_coeff_0 * input_table.get(i_row, i_col));
 			if (i_col > 0) {
-				rowwise_sum_table.add(i_row, i_col, filter_coeffs[1] * rowwise_sum_table.get(i_row, i_col - 1));
+				rowwise_sum_table.add(i_row, i_col, filter_coeff_1 * rowwise_sum_table.get(i_row, i_col - 1));
 			}
 			//rowwise_sum_table[i_col + i_row * num_rows] = input_table[i_col + i_row * num_rows];
 		}
 	}
 	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
 		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
-			output_table.set(i_row, i_col, filter_coeffs[0] * rowwise_sum_table.get(i_row, i_col));
+			output_table.set(i_row, i_col, filter_coeff_0 * rowwise_sum_table.get(i_row, i_col));
 			if (i_row > 0) {
-				output_table.add(i_row, i_col, filter_coeffs[1] * output_table.get(i_row - 1, i_col));
+				output_table.add(i_row, i_col, filter_coeff_1 * output_table.get(i_row - 1, i_col));
 			}
 			//output_table[i_col + i_row * num_rows] = rowwise_sum_table[i_col + i_row * num_rows];
 		}

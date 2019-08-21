@@ -1,5 +1,7 @@
 #include "gtest/gtest.h"
 
+#include "helpers.hpp"
+
 #include "gpufuncs.hpp"
 #include "cpufuncs.hpp"
 #include "CpuTable.hpp"
@@ -8,35 +10,102 @@
 
 using namespace gpuacademy;
 
-const static float kEpsilon = 0.000001f;
-
-TEST(recursivefiltering, apply_recursive_filter_gpu) {
-	clock_t t;
-	const int n_rows = 11, n_cols = 7;
-	//const int n_rows = 1024, n_cols = 2048;
-	const CpuTable input_table(n_rows, n_cols, 1.0f);
+TEST(recursivefiltering, apply_recursive_filter_gpu_authorsinput) {
+	const int n_rows = 6, n_cols = 6;
+	const int input_data[] = {
+		1, 0, 0, 1, 1, 1,
+		2, 1, 1, 1, 2, 1,
+		1, 2, 1, 2, 0, 1,
+		1, 1, 0, 1, 1, 2,
+		0, 1, 2, 1, 2, 1,
+		1, 0, 1, 0, 1, 1
+	};
+	CpuTable input(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
+		}
+	}
 	
-	CpuTable summed_area_table(n_rows, n_cols);
-	float sat_filter_coeffs[] = { 1.0f, 1.0f };
-	apply_right_down_recursive_filter_gpu(input_table, sat_filter_coeffs,
-		summed_area_table);
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], true), 0);
+}
 
-	t = clock();
-	CpuTable reference_table(n_rows, n_cols);
-	//Logger::new_line("Calculating SAT CPU Naive for reference...");
-	//calculate_summedareatable_cpu_naive(input_table, reference_table);
-	Logger::new_line("Calculating SAT CPU for reference...");
-	apply_right_down_recursive_filter_cpu(input_table, sat_filter_coeffs,
-		reference_table);
-	//Logger::new_line("Time spent on \"calculate_summedareatable_cpu_naive\" [ms]: " + to_ms_str(t));
-	//Logger::new_line();
-	if (n_cols <= 12 && n_rows <= 12) {
-		Logger::new_line(input_table.toString());
-		Logger::new_line(reference_table.toString());
-		Logger::new_line(summed_area_table.toString());
-		Logger::new_line();
+TEST(recursivefiltering, apply_recursive_filter_gpu_oddnumcols) {
+	const int n_rows = 4, n_cols = 5;
+	const int input_data[] = {
+		1, 0, 0, 1, 1,
+		2, 1, 1, 1, 2,
+		1, 2, 1, 2, 0,
+		1, 1, 0, 1, 1
+	};
+	CpuTable input(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
+		}
 	}
 
-	Logger::new_line();
-	ASSERT_TRUE(reference_table.equals(summed_area_table, kEpsilon));
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], true), 0);
+}
+
+TEST(recursivefiltering, apply_recursive_filter_gpu_oddnumrows) {
+	const int n_rows = 5, n_cols = 4;
+	const int input_data[] = {
+		1, 0, 0, 1,
+		2, 1, 1, 1,
+		1, 2, 1, 2,
+		1, 1, 0, 1,
+		0, 1, 2, 1
+	};
+	CpuTable input(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
+		}
+	}
+
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], true), 0);
+}
+
+TEST(recursivefiltering, apply_recursive_filter_gpu_oddnumcolsnumrows) {
+	const int n_rows = 5, n_cols = 5;
+	const int input_data[] = {
+		1, 0, 0, 1, 1,
+		2, 1, 1, 1, 2,
+		1, 2, 1, 2, 0,
+		1, 1, 0, 1, 1,
+		0, 1, 2, 1, 2,
+	};
+	CpuTable input(n_rows, n_cols);
+	for (int i_row = 0; i_row < n_rows; ++i_row) {
+		for (int i_col = 0; i_col < n_cols; ++i_col) {
+			input.set(i_row, i_col, static_cast<float>(input_data[i_col + i_row * n_cols]));
+		}
+	}
+
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], true), 0);
+}
+
+TEST(recursivefiltering, apply_recursive_filter_gpu_fractionfloats) {
+	const int n_rows = 13, n_cols = 11;
+	CpuTable input(n_rows, n_cols);
+	input.setIncreasing(0.0f, 0.0015f);
+
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], false), 0);
+}
+
+TEST(recursivefiltering, apply_recursive_filter_gpu_bigtable) {
+	const int n_rows = 1024, n_cols = 2048;
+	CpuTable input(n_rows, n_cols);
+	input.setIncreasing(0.0f, 0.0015f);
+
+	Logger::new_line("Big table size: (" + std::to_string(n_cols) + ", " + std::to_string(n_rows) + ")");
+	Logger::new_line("Filter coeffs: " + std::to_string(kSatFilterCoeffs[0]) + ", " + std::to_string(kSatFilterCoeffs[1]));
+	ASSERT_EQ(apply_recursivefilter_gpu_and_compare_with_cpu(input, kSatFilterCoeffs[0],
+		kSatFilterCoeffs[1], false), 0);
 }
