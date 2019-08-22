@@ -10,15 +10,18 @@ namespace gpuacademy {
 const float kEpsilon = 0.000001f;
 const float kSatFilterCoeffs[] = { 1.0f, 1.0f };
 
-int apply_recursivefilter_gpu_and_compare_with_cpu(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, bool print_tables) {
+template <int tableblockdim_x, int tableblockdim_y>
+comparison_result_t apply_recursivefilter_gpu_and_compare_with_cpu(const CpuTable& input,
+	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
+	bool print_tables) {
 	CpuTable summed_area_table(input.num_rows(), input.num_cols());
-	apply_right_down_recursive_filter_gpu(input, filter_coeff_0, filter_coeff_1,
-		summed_area_table);
+	const float runtime_1kernelrun_ms = recursivefilter_downright_gpu
+		<tableblockdim_x, tableblockdim_y>
+			(input, filter_coeff_0, filter_coeff_1, num_kernel_runs, summed_area_table);
 
 	CpuTable ground_truth(input.num_rows(), input.num_cols());
 	Logger::new_line("\nCalculating SAT CPU for reference...");
-	apply_right_down_recursive_filter_cpu(input, filter_coeff_0, filter_coeff_1,
+	recursivefilter_downright_cpu(input, filter_coeff_0, filter_coeff_1,
 		ground_truth);
 	if (print_tables) {
 		Logger::new_line();
@@ -26,13 +29,13 @@ int apply_recursivefilter_gpu_and_compare_with_cpu(const CpuTable& input,
 		Logger::new_line(ground_truth.toString());
 		Logger::new_line(summed_area_table.toString());
 		Logger::new_line();
+		Logger::new_line();
 	}
 
-	int ret = -1;
-	if (ground_truth.equals(summed_area_table, kEpsilon)) {
-		ret = 0;
-	}
-	return ret;
+	comparison_result_t comparison_result;
+	comparison_result.equals = ground_truth.equals(summed_area_table, kEpsilon);
+	comparison_result.runtime_1kernel_ms = runtime_1kernelrun_ms;
+	return comparison_result;
 }
 
 }

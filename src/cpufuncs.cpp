@@ -18,6 +18,7 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 		throw std::runtime_error("Number of table cols must match");
 	}
 
+	const float filter_coeffs[] = {1.0f, 1.0f};
 	clock_t t = clock();
 	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
 		if (i_row % 50 == 0) {
@@ -27,7 +28,7 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
 			for (int i_row_this = 0; i_row_this <= i_row; ++i_row_this) {
 				for (int i_col_this = 0; i_col_this <= i_col; ++i_col_this) {
-					output_table.add(i_row, i_col, input_table.get(i_row_this, i_col_this));
+					output_table.add(i_row, i_col, filter_coeffs[0] * input_table.get(i_row_this, i_col_this));
 				}
 			}
 		}
@@ -60,7 +61,7 @@ void calculate_summedareatable_cpu_naive(const CpuTable& input_table, CpuTable& 
 	}
 }*/
 
-void apply_right_down_recursive_filter_cpu(const CpuTable& input_table,
+void recursivefilter_downright_cpu(const CpuTable& input_table,
 	float filter_coeff_0, float filter_coeff_1, CpuTable& output_table) {
 	if (input_table.num_rows() != output_table.num_rows()) {
 		throw std::runtime_error("Number of table rows must match");
@@ -69,27 +70,26 @@ void apply_right_down_recursive_filter_cpu(const CpuTable& input_table,
 		throw std::runtime_error("Number of table cols must match");
 	}
 
-	clock_t t = clock();
-	CpuTable rowwise_sum_table(input_table.num_rows(), input_table.num_cols());
-	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
-		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
-			rowwise_sum_table.set(i_row, i_col, filter_coeff_0 * input_table.get(i_row, i_col));
-			if (i_col > 0) {
-				rowwise_sum_table.add(i_row, i_col, filter_coeff_1 * rowwise_sum_table.get(i_row, i_col - 1));
-			}
-			//rowwise_sum_table[i_col + i_row * num_rows] = input_table[i_col + i_row * num_rows];
-		}
-	}
-	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
-		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
-			output_table.set(i_row, i_col, filter_coeff_0 * rowwise_sum_table.get(i_row, i_col));
+	//clock_t t = clock();
+	CpuTable colwise_sum_table(input_table.num_rows(), input_table.num_cols());
+	for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
+		for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
+			colwise_sum_table.set(i_row, i_col, filter_coeff_0 * input_table.get(i_row, i_col));
 			if (i_row > 0) {
-				output_table.add(i_row, i_col, filter_coeff_1 * output_table.get(i_row - 1, i_col));
+				colwise_sum_table.add(i_row, i_col, filter_coeff_1 * colwise_sum_table.get(i_row - 1, i_col));
 			}
-			//output_table[i_col + i_row * num_rows] = rowwise_sum_table[i_col + i_row * num_rows];
+			//output_table.set(i_row, i_col, colwise_sum_table.get(i_row, i_col));
 		}
 	}
-	t = clock() - t;
+	for (int i_row = 0; i_row < input_table.num_rows(); ++i_row) {
+		for (int i_col = 0; i_col < input_table.num_cols(); ++i_col) {
+			output_table.set(i_row, i_col, filter_coeff_0 * colwise_sum_table.get(i_row, i_col));
+			if (i_col > 0) {
+				output_table.add(i_row, i_col, filter_coeff_1 * output_table.get(i_row, i_col - 1));
+			}
+		}
+	}
+	//t = clock() - t;
 	//Logger::new_line("Execution time of \"apply_recursive_filter_cpu\" [ms]: "
 	//	+ to_ms_str(t));
 }

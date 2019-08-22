@@ -13,7 +13,7 @@ public:
 	void set(int row_id, int col_id, float val);
 	void add(int row_id, int col_id, float val);
 	void set(const float* data);
-	void setIncreasing(float first_value, float increment);
+	void setSawTooth(float amplitude, int period);
 	//CpuTable& operator=(const CpuTable& other_table);
 	int num_rows() const;
 	int num_cols() const;

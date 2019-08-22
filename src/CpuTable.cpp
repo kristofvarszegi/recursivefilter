@@ -43,12 +43,19 @@ void CpuTable::set(const float* data) {
 	memcpy(data_, data, num_rows_ * num_cols_ * sizeof(float));
 }
 
-void CpuTable::setIncreasing(float first_value, float increment) {
-	float val = first_value;
+void CpuTable::setSawTooth(float amplitude, int period) {
+	float val = -amplitude;
+	const float increment = 2 * amplitude / static_cast<float>(period - 1);
 	for (int i_row = 0; i_row < num_rows_; ++i_row) {
 		for (int i_col = 0; i_col < num_cols_; ++i_col) {
-			set(i_row, i_col, val);
-			val += increment;
+			const int index = i_col + i_row * num_cols_;
+			if (index % period == 0) {
+				val = -amplitude;
+			}
+			else {
+				val += increment;
+			}
+			data_[index] = val;
 		}
 	}
 }
