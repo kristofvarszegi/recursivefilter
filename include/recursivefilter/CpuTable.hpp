@@ -1,5 +1,7 @@
-#pragma once
+#ifndef CPUTABLE_HPP
+#define CPUTABLE_HPP
 
+#include <vector>
 #include <string>
 
 namespace gpuacademy {
@@ -8,23 +10,26 @@ class CpuTable {
 public:
 	CpuTable(int num_rows, int num_cols);
 	CpuTable(int num_rows, int num_cols, float fill_val);
-	CpuTable(int num_rows, int num_cols, float* data);
+	CpuTable(int num_rows, int num_cols, const float* data);
+	CpuTable(int num_rows, int num_cols, const int* data);
 	~CpuTable();
 	void set(int row_id, int col_id, float val);
 	void add(int row_id, int col_id, float val);
 	void set(const float* data);
+	void set(const int* data);
+	void reset(int num_rows, int num_cols);
 	void setSawTooth(float amplitude, int period);
 	//CpuTable& operator=(const CpuTable& other_table);
 	int num_rows() const;
 	int num_cols() const;
-	float* data() const;
+	std::vector<std::vector<float>> data() const;
 	float get(int row_id, int col_id) const;
 	std::string toString() const;
-	bool equals(const CpuTable& other_table, float epsilon) const;
+	bool equals(const CpuTable& other_table, float max_abserror) const;
 private:
-	int num_rows_;
-	int num_cols_;
-	float* data_;
+	std::vector<std::vector<float>> data_;
+	void resetData(int num_rows, int num_cols);
 };
 
 }
+#endif

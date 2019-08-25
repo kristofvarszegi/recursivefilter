@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GPUFUNCS_HPP
+#define GPUFUNCS_HPP
 
 #ifdef _WIN32
 #include <device_launch_parameters.h>
@@ -10,22 +11,21 @@ void __syncthreads();
 
 #include "CpuTable.hpp"
 
+#include <vector>
+
 namespace gpuacademy {
 
-template <int tableblockdim_x, int tableblockdim_y>
-float recursivefilter_downright_gpu(const CpuTable& input_table,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	CpuTable& output_table);
+enum OUTPUT_STEP {
+	STEP_1,
+	STEP_2,
+	STEP_3,
+	STEP_4,
+	STEP_5_FINAL
+};
 
-template float recursivefilter_downright_gpu<2, 2>(const CpuTable& input_table,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	CpuTable& output_table);
-
-template float recursivefilter_downright_gpu<32, 32>(const CpuTable& input_table,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	CpuTable& output_table);
-
-template float recursivefilter_downright_gpu<64, 64>(const CpuTable& input_table,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	CpuTable& output_table);
+float recursivefilter_downright_gpu(const CpuTable& input,
+	float filter_coeff_0, float filter_coeff_1, int tableblockdim_x,
+	int tableblockdim_y, int num_kernel_runs, OUTPUT_STEP output_step,
+	std::vector<CpuTable>& outputs);
 }
+#endif

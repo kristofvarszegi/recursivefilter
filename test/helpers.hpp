@@ -1,31 +1,23 @@
 #pragma once
 
 #include "CpuTable.hpp"
+#include "gpufuncs.hpp"
 
 #include <ctime>
 
 namespace gpuacademy {
-
-extern const float kEpsilon;
-extern const float kSatFilterCoeffs[];
 
 struct comparison_result_t {
 	int equals;
 	float runtime_1kernel_ms;
 };
 
-template <int tableblockdim_x, int tableblockdim_y>
-comparison_result_t apply_recursivefilter_gpu_and_compare_with_cpu(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	bool print_tables);
+comparison_result_t recursivefilter_and_compare_gpuvscpu(
+	const CpuTable& input, float filter_coeff_0, float filter_coeff_1,
+	int tableblockdim_x, int tableblockdim_y, int num_kernel_runs,
+	OUTPUT_STEP output_step, float max_abs_error, bool print_tables,
+	bool save_csv);
 
-template comparison_result_t apply_recursivefilter_gpu_and_compare_with_cpu<2, 2>(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	bool print_tables);
-template comparison_result_t apply_recursivefilter_gpu_and_compare_with_cpu<32, 32>(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	bool print_tables);
-template comparison_result_t apply_recursivefilter_gpu_and_compare_with_cpu<64, 64>(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	bool print_tables);
+void save_to_csv(const CpuTable& table, const std::string& filename);
+
 }

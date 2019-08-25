@@ -6,11 +6,26 @@
 
 #include <algorithm>
 
+#define MAX_TABLEBLOCK_X 32
+#define MAX_TABLEBLOCK_Y 32
+#define PRINT_LIMIT_X 8
+#define PRINT_LIMIT_Y 8
+
 namespace gpuacademy {
 
-//const dim3 kThreadBlockDimInRows = dim3(1, kTableBlockDimY);
-//const dim3 kThreadBlockDimInCols = dim3(kTableBlockDimX , 1);
-//const dim3 kThreadBlockDimInColsBlocky = dim3(kTableBlockDimX, 1);
+inline void chk_cu_err(CUresult code) {
+	if (code != CUDA_SUCCESS) {
+		const char* buf;
+		cuGetErrorString(code, &buf);
+		throw std::runtime_error("Error: " + std::string(buf) + "\n");
+	}
+}
+
+inline void chk_cu_err(cudaError_t code) {
+	if (code != cudaSuccess) {
+		throw std::runtime_error("Error: " + std::string(cudaGetErrorString(code)) + "\n");
+	}
+}
 
 __global__ void copy(const float* input_table, int num_rows,
 	int num_cols, float* output_table) {
@@ -22,27 +37,8 @@ __global__ void copy(const float* input_table, int num_rows,
 	}
 }
 
-// One thread calculates one row
-__global__ void apply_recursive_filter_right(const float* input_table, int num_rows,
-	int num_cols, float filter_coeff_0, float filter_coeff_1, float* output_table) {
-	const int global_tid = blockIdx.y * blockDim.y + threadIdx.y;
-
-	if (global_tid < num_rows) {
-		float filtered_val, prev_filtered_val;
-#pragma unroll
-		for (int i_col = 0; i_col < num_cols; ++i_col) {
-			filtered_val = filter_coeff_0 * input_table[i_col + global_tid * num_cols];
-			if (i_col > 0) {
-				filtered_val += filter_coeff_1 * prev_filtered_val;
-			}
-			output_table[i_col + global_tid * num_cols] = filtered_val;
-			prev_filtered_val = filtered_val;
-		}
-	}
-}
-
 // One thread calculates one col
-__global__ void apply_recursive_filter_down(const float* input_table, int num_rows,
+__global__ void recursivefilter_down(const float* input_table, int num_rows,
 	int num_cols, float filter_coeff_0, float filter_coeff_1, float* output_table) {
 	const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -60,161 +56,147 @@ __global__ void apply_recursive_filter_down(const float* input_table, int num_ro
 	}
 }
 
-#if 0
-// One thread calculates one row within a table block
-__global__ void apply_recursive_filter_right_blocky(const float* input_table, int num_rows,
-	int num_cols, const float* filter_coeffs, float* output_table) {
-	const int global_tid = blockIdx.y * blockDim.z + threadIdx.z;
-	
-	const int tableblock_start_x_global = blockIdx.x * kTableBlockDimOneSide;
-	const int y_in_tableblock = global_tid % kTableBlockDimOneSide;
-	__shared__ float rowwise_sums_tableblock[kTableBlockDimOneSide * kTableBlockDimOneSide];
-	//printf("\n%d, %d, %d, %d", blockIdx.x, blockDim.x, threadIdx.x, tableblock_start_x);
+// One thread calculates one row
+__global__ void recursivefilter_right(const float* input_table, int num_rows,
+	int num_cols, float filter_coeff_0, float filter_coeff_1, float* output_table) {
+	const int global_tid = blockIdx.y * blockDim.y + threadIdx.y;
+
 	if (global_tid < num_rows) {
-		#pragma unroll
-		for (int x_in_tableblock = 0; x_in_tableblock < kTableBlockDimOneSide; ++x_in_tableblock) {
-			if (tableblock_start_x_global + x_in_tableblock < num_cols) {
-				const int id_in_tableblock = x_in_tableblock + y_in_tableblock * kTableBlockDimOneSide;
-				rowwise_sums_tableblock[id_in_tableblock] =
-					filter_coeffs[0] * input_table[tableblock_start_x_global + x_in_tableblock + global_tid * num_cols];
-				if (x_in_tableblock > 0) {
-					rowwise_sums_tableblock[id_in_tableblock] +=
-						filter_coeffs[1] * rowwise_sums_tableblock[(x_in_tableblock - 1) + y_in_tableblock * kTableBlockDimOneSide];
-				}
+		float filtered_val, prev_filtered_val;
+#pragma unroll
+		for (int i_col = 0; i_col < num_cols; ++i_col) {
+			filtered_val = filter_coeff_0 * input_table[i_col + global_tid * num_cols];
+			if (i_col > 0) {
+				filtered_val += filter_coeff_1 * prev_filtered_val;
 			}
-		}
-		__syncthreads();
-		for (int x_in_tableblock = 0; x_in_tableblock < kTableBlockDimOneSide; ++x_in_tableblock) {
-			if (tableblock_start_x_global + x_in_tableblock < num_cols) {
-				output_table[tableblock_start_x_global + x_in_tableblock + global_tid * num_cols] =
-					rowwise_sums_tableblock[x_in_tableblock + y_in_tableblock * kTableBlockDimOneSide];
-			}
+			output_table[i_col + global_tid * num_cols] = filtered_val;
+			prev_filtered_val = filtered_val;
 		}
 	}
 }
-#endif
 
-#if 0
-// One thread calculates one col within a table block
-__global__ void apply_recursive_filter_down_blocky(const float* input_table, int num_rows,
-	int num_cols, float filter_coeff_0, float filter_coeff_1, float* incolsum_table) {
-	const int global_tid_x = blockIdx.x * blockDim.x + threadIdx.x;
-	if (global_tid_x < num_cols) {
-		float colwise_sum, prev_colwise_sum;
-		const int tableblock_start_y_global = blockIdx.y * kTableBlockDimY;
-		//const int x_in_tableblock = global_tid_x % kTableBlockDimInColsX;
-		//const int x_in_tableblock = global_tid_x & (kTableBlockDimX - 1);	// Modulo with power of 2
-
-		#pragma unroll
-		for (int y_in_tableblock = 0; y_in_tableblock < kTableBlockDimY; ++y_in_tableblock) {
-			if (tableblock_start_y_global + y_in_tableblock < num_rows) {
-				colwise_sum = filter_coeff_0 * input_table[global_tid_x + (tableblock_start_y_global + y_in_tableblock) * num_cols];
-				if (y_in_tableblock > 0) {
-					colwise_sum += filter_coeff_1 * prev_colwise_sum;
-				}
-				prev_colwise_sum = colwise_sum;
-				incolsum_table[global_tid_x + blockIdx.y * num_cols] = colwise_sum;
-				//output_table[global_tid_x + (tableblock_start_y_global + y_in_tableblock) * num_cols] = colwise_sum;
-			}
-		}
-	}
-}
-#endif
-
-template <int tableblockdim_x, int tableblockdim_y>
-__global__ void recursivefilter_downright_blocky(
-	const float* input, int num_rows, int num_cols, float filter_coeff_0,
+__global__ void recursivefilter_step1_inblocksdownright(
+	const float* input, int num_rows, int num_cols, int tableblockdim_x,
+	int tableblockdim_y, float filter_coeff_0,
 	float filter_coeff_1, float* blockwise_colwise_sums,
-	float* blockwise_rowwise_sums, float* aggregated_colwise_sums,
-	float* blockwise_rowwise_aggregatedcolsums, float* aggregated_rowwise_sums,
-	float* output) {
+	float* blockwise_rowwise_sums) {
 	const int global_tid_x = blockIdx.x * tableblockdim_x + threadIdx.x;
 	const int global_tid_y = blockIdx.y * tableblockdim_y + threadIdx.x;
-		// Yes, blockDim.x and threadIdx.x (not .y), as we have a 1D thread array within a thread block
+		// Yes, threadIdx.x (not .y), as we have a 1D thread array within a thread block
+	
+	extern __shared__ float colwise_sums_thisblock[];	// [tableblockdim_x * tableblockdim_y];
 
-	__shared__ float colwise_sums_thisblock[tableblockdim_x * tableblockdim_y];
-	__shared__ float rowwise_sums_thisblock[tableblockdim_y];
-	__shared__ float aggregated_colwise_sums_thisblock[tableblockdim_x * tableblockdim_y];
-	//extern __shared__ float colwise_sums_thisblock[];
-	//extern __shared__ float rowwise_sums_thisblock[];
-	//extern __shared__ float aggregated_colwise_sums_thisblock[];
-
-	const int thisblock_start_x_global = blockIdx.x * tableblockdim_x;
-	const int thisblock_start_y_global = blockIdx.y * tableblockdim_y;
 	if (global_tid_x < num_cols) {
-		const int x_in_thisblock = threadIdx.x;
-
+		float aggregated_sum, prev_aggregated_sum = 0.0f;
 #pragma unroll
 		for (int y_in_thisblock = 0; y_in_thisblock < tableblockdim_y; ++y_in_thisblock) {
-			if (thisblock_start_y_global + y_in_thisblock <= num_rows) {
-				const int id_in_tableblock = x_in_thisblock + y_in_thisblock * tableblockdim_x;
-				colwise_sums_thisblock[id_in_tableblock] = 0.0f;
-				if (thisblock_start_y_global + y_in_thisblock < num_rows) {
-					colwise_sums_thisblock[id_in_tableblock] = filter_coeff_0
-						* input[global_tid_x + (thisblock_start_y_global + y_in_thisblock) * num_cols];
-				}
-				if (y_in_thisblock > 0) {
-					colwise_sums_thisblock[id_in_tableblock] += filter_coeff_1 *
-						colwise_sums_thisblock[x_in_thisblock + (y_in_thisblock - 1) * tableblockdim_x];
-				}
+			//aggregated_sum = 0.0f;
+			if (blockIdx.y * tableblockdim_y + y_in_thisblock < num_rows) {
+				aggregated_sum = filter_coeff_0
+					* input[global_tid_x + (blockIdx.y * tableblockdim_y + y_in_thisblock) * num_cols];
+				aggregated_sum += filter_coeff_1 * prev_aggregated_sum;
 			}
+			colwise_sums_thisblock[threadIdx.x + y_in_thisblock * tableblockdim_x] = aggregated_sum;
+			prev_aggregated_sum = aggregated_sum;
 		}
 		__syncthreads();
 		blockwise_colwise_sums[global_tid_x + blockIdx.y * num_cols] =
-			colwise_sums_thisblock[threadIdx.x + (tableblockdim_y - 1) * tableblockdim_x];
+			aggregated_sum;
 	}
 
 	if (global_tid_y < num_rows && threadIdx.x < tableblockdim_y) {
-		const int y_in_thisblock = threadIdx.x;	// Each thread does a row
 		float aggregated_sum, prev_aggregated_sum = 0.0f;
+#pragma unroll
 		for (int x_in_thisblock = 0; x_in_thisblock < tableblockdim_x; ++x_in_thisblock) {
-			if (thisblock_start_x_global + x_in_thisblock < num_cols) {
-				aggregated_sum = filter_coeff_0 * colwise_sums_thisblock[x_in_thisblock + y_in_thisblock * tableblockdim_x]
-					+ filter_coeff_1 * prev_aggregated_sum;
-				rowwise_sums_thisblock[y_in_thisblock] = aggregated_sum;
-			}
-			prev_aggregated_sum = aggregated_sum;
-		}
-		__syncthreads();
-		blockwise_rowwise_sums[blockIdx.x + (thisblock_start_y_global + threadIdx.x) * gridDim.x] =
-			rowwise_sums_thisblock[threadIdx.x];
-	}
-
-	if (global_tid_x < num_cols) {
-		float aggregated_sum, prev_aggregated_sum = 0.0f;
-		for (int y_in_grid = 0; y_in_grid < gridDim.y; ++y_in_grid) {
-			aggregated_sum = filter_coeff_0 * blockwise_colwise_sums[global_tid_x + y_in_grid * num_cols]
-				+ filter_coeff_1 * prev_aggregated_sum;
-			prev_aggregated_sum = aggregated_sum;
-			aggregated_colwise_sums[global_tid_x + y_in_grid * num_cols] = aggregated_sum;
-		}
-	}
-
-	if (global_tid_y < num_rows && threadIdx.x == 0) {
-		float aggregated_sum, prev_aggregated_sum = 0.0f;
-		for (int x_in_blockrow = 0; x_in_blockrow < tableblockdim_x; ++x_in_blockrow) {
-			if (blockIdx.x * tableblockdim_x + x_in_blockrow < num_cols) {
+			//aggregated_sum = 0.0f;
+			if (blockIdx.x * tableblockdim_x + x_in_thisblock < num_cols) {
 				aggregated_sum = filter_coeff_0
-					* aggregated_colwise_sums[(blockIdx.x * tableblockdim_x + x_in_blockrow) + blockIdx.y * num_cols]
-					+ filter_coeff_1 * prev_aggregated_sum;
-				prev_aggregated_sum = aggregated_sum;
+					* colwise_sums_thisblock[x_in_thisblock + threadIdx.x * tableblockdim_x];
+				aggregated_sum += filter_coeff_1 * prev_aggregated_sum;
 			}
+			prev_aggregated_sum = aggregated_sum;
 		}
-		blockwise_rowwise_aggregatedcolsums[blockIdx.x + blockIdx.y * gridDim.x] = aggregated_sum;
+		blockwise_rowwise_sums[blockIdx.x + (blockIdx.y * tableblockdim_y + threadIdx.x) * gridDim.x] =
+			aggregated_sum;
 	}
+}
 
+__global__ void recursivefilter_step2_overblocksdown(
+	int num_aggregated_rows, int num_cols, int tableblockdim_y, float filter_coeff_0,
+	float filter_coeff_1, float* blockwise_colwise_sums,
+	float* aggregated_colwise_sums) {
+	const int global_tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (global_tid < num_cols) {
+		float aggregated_sum, prev_aggregated_sum = 0.0f;
+		for (int y_in_grid = 0; y_in_grid < num_aggregated_rows; ++y_in_grid) {
+			aggregated_sum = blockwise_colwise_sums[global_tid + y_in_grid * num_cols]
+				+ powf(filter_coeff_1, tableblockdim_y) * prev_aggregated_sum;
+			prev_aggregated_sum = aggregated_sum;
+			aggregated_colwise_sums[global_tid + y_in_grid * num_cols] = aggregated_sum;
+		}
+	}
+}
+
+__global__ void recursivefilter_step3_inoverblockscolsummedblocksright(
+	int num_aggregated_rows, int num_cols, int num_aggregated_cols,
+	int tableblockdim_x, float filter_coeff_0, float filter_coeff_1,
+	float* aggregated_colwise_sums, float* blockwise_rowwise_aggregatedcolsums) {
+	const int global_tid_x = blockIdx.x * blockDim.x + threadIdx.x;
+	const int global_tid_y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	if (global_tid_x < num_aggregated_cols && global_tid_y < num_aggregated_rows) {
+		float aggregated_sum, prev_aggregated_sum = 0.0f;
+#pragma unroll
+		for (int x_in_blockrow = 0; x_in_blockrow < tableblockdim_x; ++x_in_blockrow) {
+			const int global_x_offset = global_tid_x * tableblockdim_x + x_in_blockrow;
+			//aggregated_sum = 0.0f;
+			if (global_x_offset < num_cols) {
+				aggregated_sum = filter_coeff_0
+					* aggregated_colwise_sums[global_x_offset + global_tid_y * num_cols];
+				aggregated_sum += filter_coeff_1 * prev_aggregated_sum;
+			}
+			prev_aggregated_sum = aggregated_sum;
+		}
+		blockwise_rowwise_aggregatedcolsums[global_tid_x + global_tid_y * num_aggregated_cols] = aggregated_sum;
+	}
+}
+
+__global__ void recursivefilter_step4_overblocksright(
+	int num_rows, int num_aggregated_cols, int tableblockdim_x,
+	float filter_coeff_0, float filter_coeff_1,
+	float* blockwise_rowwise_sums, float* blockwise_rowwise_aggregatedcolsums,
+	float* aggregated_rowwise_sums) {
+	const int global_tid_y = blockIdx.y * blockDim.y + threadIdx.y;
+	
 	if (global_tid_y < num_rows) {
 		float aggregated_sum, prev_aggregated_sum = 0.0f;
-		for (int x_in_grid = 0; x_in_grid < gridDim.x; ++x_in_grid) {
-			aggregated_sum = filter_coeff_0 * blockwise_rowwise_sums[x_in_grid + global_tid_y * gridDim.x]
-				+ filter_coeff_1 * prev_aggregated_sum;
+		for (int x_in_row = 0; x_in_row < num_aggregated_cols; ++x_in_row) {
+			aggregated_sum = blockwise_rowwise_sums[x_in_row + global_tid_y * num_aggregated_cols]
+				+ powf(filter_coeff_1, tableblockdim_x) * prev_aggregated_sum;
 			if (blockIdx.y > 0) {
-				aggregated_sum += filter_coeff_1 * blockwise_rowwise_aggregatedcolsums[x_in_grid + (blockIdx.y - 1) * gridDim.x];
+				aggregated_sum += powf(filter_coeff_1, threadIdx.y + 1)
+					* blockwise_rowwise_aggregatedcolsums[x_in_row + (blockIdx.y - 1) * num_aggregated_cols];
 			}
 			prev_aggregated_sum = aggregated_sum;
-			aggregated_rowwise_sums[x_in_grid + global_tid_y * gridDim.x] = aggregated_sum;
+			aggregated_rowwise_sums[x_in_row + global_tid_y * num_aggregated_cols] = aggregated_sum;
 		}
 	}
+}
+
+__global__ void recursivefilter_step5_inblocksdownright(
+	const float* input, int num_rows, int num_cols, int tableblockdim_x,
+	int tableblockdim_y, float filter_coeff_0,
+	float filter_coeff_1, float* aggregated_colwise_sums,
+	float* aggregated_rowwise_sums, float* final_sums) {
+	const int global_tid_x = blockIdx.x * tableblockdim_x + threadIdx.x;
+	const int global_tid_y = blockIdx.y * tableblockdim_y + threadIdx.x;
+	// Yes, blockDim.x and threadIdx.x (not .y), as we have a 1D thread array within a thread block
+
+	extern __shared__ float aggregated_colwise_sums_thisblock[];	// [tableblockdim_x * tableblockdim_y];
+
+	const int thisblock_start_x_global = blockIdx.x * tableblockdim_x;
+	const int thisblock_start_y_global = blockIdx.y * tableblockdim_y;
 
 	if (global_tid_x < num_cols) {
 		float aggregated_sum, prev_aggregated_sum = 0.0f;
@@ -246,227 +228,272 @@ __global__ void recursivefilter_downright_blocky(
 			aggregated_sum = filter_coeff_0 * aggregated_colwise_sums_thisblock[x_in_thisblock + threadIdx.x * tableblockdim_x]
 				+ filter_coeff_1 * prev_aggregated_sum;	// Yes, threadIdx.x (not .y)
 			prev_aggregated_sum = aggregated_sum;
-			output[(thisblock_start_x_global + x_in_thisblock) + global_tid_y * num_cols] = aggregated_sum;
+			final_sums[(thisblock_start_x_global + x_in_thisblock) + global_tid_y * num_cols] = aggregated_sum;
 		}
 	}
 }
 
-template __global__ void recursivefilter_downright_blocky<2, 2>(
-	const float* input, int num_rows, int num_cols, float filter_coeff_0,
-	float filter_coeff_1, float* blockwise_colwise_sums,
-	float* blockwise_rowwise_sums, float* aggregated_colwise_sums,
-	float* blockwise_rowwise_aggregatedcolsums, float* aggregated_rowwise_sums,
-	float* output);
-template __global__ void recursivefilter_downright_blocky<32, 32>(
-	const float* input, int num_rows, int num_cols, float filter_coeff_0,
-	float filter_coeff_1, float* blockwise_colwise_sums,
-	float* blockwise_rowwise_sums, float* aggregated_colwise_sums,
-	float* blockwise_rowwise_aggregatedcolsums, float* aggregated_rowwise_sums,
-	float* output);
-template __global__ void recursivefilter_downright_blocky<64, 64>(
-	const float* input, int num_rows, int num_cols, float filter_coeff_0,
-	float filter_coeff_1, float* blockwise_colwise_sums,
-	float* blockwise_rowwise_sums, float* aggregated_colwise_sums,
-	float* blockwise_rowwise_aggregatedcolsums, float* aggregated_rowwise_sums,
-	float* output);
-
-template <int tableblockdim_x, int tableblockdim_y>
 float recursivefilter_downright_gpu(const CpuTable& input,
-	float filter_coeff_0, float filter_coeff_1, int num_kernel_runs,
-	CpuTable& output) {
-	if (tableblockdim_x < 1) {
-		throw std::runtime_error("Table block dim x must be at least 1");
+	float filter_coeff_0, float filter_coeff_1, int tableblockdim_x,
+	int tableblockdim_y, int num_kernel_runs, OUTPUT_STEP output_step,
+	std::vector<CpuTable>& outputs) {
+	if (input.num_rows() < 2) {
+		throw std::runtime_error("Number of input rows must be at least 2");
 	}
-	if (tableblockdim_y < 1) {
-		throw std::runtime_error("Table block dim y must be at least 1");
+	if (input.num_cols() < 2) {
+		throw std::runtime_error("Number of input cols must be at least 2");
 	}
-	if (input.num_rows() != output.num_rows()) {
-		throw std::runtime_error("Number of table rows must match");
+	if (tableblockdim_x < 2) {
+		throw std::runtime_error("Table block dim x must be at least 2");
 	}
-	if (input.num_cols() != output.num_cols()) {
-		throw std::runtime_error("Number of table cols must match");
+	if (tableblockdim_y < 2) {
+		throw std::runtime_error("Table block dim y must be at least 2");
+	}
+	if (tableblockdim_x > MAX_TABLEBLOCK_X) {
+		throw std::runtime_error("Table block dim x must be at most " + std::to_string(MAX_TABLEBLOCK_X));
+	}
+	if (tableblockdim_x > MAX_TABLEBLOCK_Y) {
+		throw std::runtime_error("Table block dim y must be at most " + std::to_string(MAX_TABLEBLOCK_Y));
 	}
 	if (num_kernel_runs < 1) {
 		throw std::runtime_error("Number of kernel runs must be at least 1");
 	}
 
 	Logger::new_line("Input table dims: (" + std::to_string(input.num_cols())
-		+ ", " + std::to_string(input.num_rows()) + ")");
+		+ ", " + std::to_string(input.num_rows()) + ")\n");
+
+	chk_cu_err(cuInit(0));
+	int device_count = -1;
+	chk_cu_err(cuDeviceGetCount(&device_count));
+	Logger::new_line("CUDA device count: " + std::to_string(device_count));
+	CUdevice device;
+	chk_cu_err(cuDeviceGet(&device, 0));
+	CUcontext cudaContext;
+	chk_cu_err(cuCtxCreate(&cudaContext, CU_CTX_SCHED_AUTO, device));
+
+	if (input.num_rows() <= PRINT_LIMIT_Y && input.num_cols() <= PRINT_LIMIT_X) {
+		Logger::new_line("\nInput:\n" + input.toString());
+	}
+	float* h_input = (float*)malloc(input.num_rows() * input.num_cols() * sizeof(float));
+	for (int i_row = 0; i_row < input.num_rows(); ++i_row) {
+		for (int i_col = 0; i_col < input.num_cols(); ++i_col) {
+			h_input[i_col + i_row * input.num_cols()] = input.get(i_row, i_col);
+		}
+	}
 
 	float* d_input;
-	cudaMalloc((void**)(&d_input), input.num_rows() * input.num_cols() * sizeof(float));
-	cudaMemcpy(d_input, input.data(), input.num_cols() * input.num_rows() * sizeof(float), cudaMemcpyHostToDevice);
+	//chk_cu_err(cudaMalloc(&d_input, input.num_rows() * input.num_cols() * sizeof(float)));
+	chk_cu_err(cudaMalloc((void**)(&d_input), input.num_rows() * input.num_cols() * sizeof(float)));
+	chk_cu_err(cudaMemcpy(d_input, h_input, input.num_rows() * input.num_cols() * sizeof(float), cudaMemcpyHostToDevice));
 
 	float* d_blockwise_colwise_sums;
 	const int n_blockwise_colwise_rows = input.num_rows() % tableblockdim_y == 0 ?
-		input.num_rows() / tableblockdim_x : input.num_rows() / tableblockdim_y + 1;
-	cudaMalloc((void**)(&d_blockwise_colwise_sums), input.num_cols() * n_blockwise_colwise_rows * sizeof(float));
+		input.num_rows() / tableblockdim_y : input.num_rows() / tableblockdim_y + 1;
+	chk_cu_err(cudaMalloc((void**)(&d_blockwise_colwise_sums), input.num_cols() * n_blockwise_colwise_rows * sizeof(float)));
 	Logger::new_line("Blockwise-colwise table dims: (" + std::to_string(input.num_cols())
 		+ ", " + std::to_string(n_blockwise_colwise_rows) + ")");
 
 	float* d_blockwise_rowwise_sums;
-	const int n_blockwise_rowwise_cols = input.num_cols() % tableblockdim_x == 0 ?
+	const int n_step1_inblocksdownright_rows = input.num_rows() % tableblockdim_y == 0 ?
+		input.num_rows() / tableblockdim_y : input.num_rows() / tableblockdim_y + 1;
+	const int n_step1_inblocksdownright_cols = input.num_cols() % tableblockdim_x == 0 ?
 		input.num_cols() / tableblockdim_x : input.num_cols() / tableblockdim_x + 1;
-	cudaMalloc((void**)(&d_blockwise_rowwise_sums), n_blockwise_rowwise_cols * input.num_rows() * sizeof(float));
-	Logger::new_line("Blockwise-rowwise table dims: (" + std::to_string(n_blockwise_rowwise_cols)
+	chk_cu_err(cudaMalloc((void**)(&d_blockwise_rowwise_sums), n_step1_inblocksdownright_cols * input.num_rows() * sizeof(float)));
+	Logger::new_line("Blockwise-rowwise table dims: (" + std::to_string(n_step1_inblocksdownright_cols)
 		+ ", " + std::to_string(input.num_rows()) + ")");
 
 	float* d_aggregated_colwise_sums;
-	const int n_aggregated_colwise_rows = input.num_rows() % tableblockdim_y == 0 ?
+	const int n_step2_overblocksdown_rows = input.num_rows() % tableblockdim_y == 0 ?
 		input.num_rows() / tableblockdim_y : input.num_rows() / tableblockdim_y + 1;
-	cudaMalloc((void**)(&d_aggregated_colwise_sums), input.num_cols() * n_aggregated_colwise_rows * sizeof(float));
+	chk_cu_err(cudaMalloc((void**)(&d_aggregated_colwise_sums), input.num_cols() * n_step2_overblocksdown_rows * sizeof(float)));
 	Logger::new_line("Aggregated colwise table dims: (" + std::to_string(input.num_cols())
-		+ ", " + std::to_string(n_aggregated_colwise_rows) + ")");
+		+ ", " + std::to_string(n_step2_overblocksdown_rows) + ")");
 
 	float* d_blockwise_rowwise_aggregatedcolsums;
-	const int n_blockwise_rowwise_aggregatedcolsums_rows = input.num_rows() % tableblockdim_y == 0 ?
+	const int n_step3_inoverblockscolsummedblocksright_rows = input.num_rows() % tableblockdim_y == 0 ?
 		input.num_rows() / tableblockdim_y : input.num_rows() / tableblockdim_y + 1;
-	const int n_blockwise_rowwise_aggregatedcolsums_cols = input.num_cols() % tableblockdim_x == 0 ?
+	const int n_step3_inoverblockscolsummedblocksright_cols = input.num_cols() % tableblockdim_x == 0 ?
 		input.num_cols() / tableblockdim_x : input.num_cols() / tableblockdim_x + 1;
-	cudaMalloc((void**)(&d_blockwise_rowwise_aggregatedcolsums),
-		n_blockwise_rowwise_aggregatedcolsums_cols * n_blockwise_rowwise_aggregatedcolsums_rows * sizeof(float));
+	chk_cu_err(cudaMalloc((void**)(&d_blockwise_rowwise_aggregatedcolsums),
+		n_step3_inoverblockscolsummedblocksright_cols * n_step3_inoverblockscolsummedblocksright_rows * sizeof(float)));
 	Logger::new_line("Blockwise-rowwise aggregatedcolsum table dims: ("
-		+ std::to_string(n_blockwise_rowwise_aggregatedcolsums_cols) + ", "
-		+ std::to_string(n_blockwise_rowwise_aggregatedcolsums_rows) + ")");
+		+ std::to_string(n_step3_inoverblockscolsummedblocksright_cols) + ", "
+		+ std::to_string(n_step3_inoverblockscolsummedblocksright_rows) + ")");
 	
 	float* d_aggregated_rowwise_sums;
-	const int n_aggregated_rowwise_cols = input.num_cols() % tableblockdim_x == 0 ?
+	const int n_recursivefilter_step4_overblocksright_cols = input.num_cols() % tableblockdim_x == 0 ?
 		input.num_cols() / tableblockdim_x : input.num_cols() / tableblockdim_x + 1;
-	cudaMalloc((void**)(&d_aggregated_rowwise_sums), n_aggregated_rowwise_cols * input.num_rows() * sizeof(float));
-	Logger::new_line("Aggregated rowwise sum table dims: (" + std::to_string(n_aggregated_rowwise_cols)
+	chk_cu_err(cudaMalloc((void**)(&d_aggregated_rowwise_sums),
+		n_recursivefilter_step4_overblocksright_cols * input.num_rows() * sizeof(float)));
+	Logger::new_line("Aggregated rowwise sum table dims: (" + std::to_string(n_recursivefilter_step4_overblocksright_cols)
 		+ ", " + std::to_string(input.num_rows()) + ")");
 
-	float* d_output;
-	cudaMalloc((void**)(&d_output), input.num_rows() * input.num_cols() * sizeof(float));
+	float* d_finalsums;
+	chk_cu_err(cudaMalloc((void**)(&d_finalsums), input.num_rows() * input.num_cols() * sizeof(float)));
 	
-	//dim3 thread_grid_dim_inrows(1, input_table.num_rows() / kThreadBlockDimInRows.y);
-	//if (input_table.num_rows() % kThreadBlockDimInRows.y != 0) { thread_grid_dim_inrows.y += 1; }
-	//dim3 thread_grid_dim_incols(input_table.num_cols() / kThreadBlockDimInCols.x, 1);
-	//if (input_table.num_cols() % kThreadBlockDimInCols.x != 0) { thread_grid_dim_incols.x += 1; }
-	//dim3 thread_grid_dim_incols_blocky(input_table.num_cols() / kTableBlockDimX,
-	//	input_table.num_rows() / kTableBlockDimY);
-	//if (input_table.num_cols() % kTableBlockDimX != 0) { thread_grid_dim_incols_blocky.x += 1; }
-	//if (input_table.num_rows() % kTableBlockDimY != 0) { thread_grid_dim_incols_blocky.y += 1; }
+	const int threadgriddim_x = input.num_cols() % tableblockdim_x == 0 ? input.num_cols() / tableblockdim_x
+		: input.num_cols() / tableblockdim_x + 1;
+	const int threadgriddim_y = input.num_rows() % tableblockdim_y == 0 ? input.num_rows() / tableblockdim_y
+		: input.num_rows() / tableblockdim_y + 1;
+	const int threadgriddim2_x = threadgriddim_x % tableblockdim_x == 0 ? threadgriddim_x / tableblockdim_x
+		: threadgriddim_x / tableblockdim_x + 1;
+	const int threadgriddim2_y = threadgriddim_y % tableblockdim_y == 0 ? threadgriddim_y / tableblockdim_y
+		: threadgriddim_y / tableblockdim_y + 1;
 
-	const dim3 threadblockdim = dim3(std::max(tableblockdim_x, tableblockdim_y), 1);
-	dim3 threadgriddim(input.num_cols() / threadblockdim.x,
-		input.num_rows() / threadblockdim.x);	// Same array of threads do the cols and the rows as well
-	if (input.num_cols() % threadblockdim.x != 0) { threadgriddim.x += 1; }
-	if (input.num_rows() % threadblockdim.x != 0) { threadgriddim.y += 1; }
-	//const int shared_memory_size_bytes = tableblockdim_x * tableblockdim_y * sizeof(float)
-	//	+ tableblockdim_y * sizeof(float) + tableblockdim_x * tableblockdim_y * sizeof(float);
-
-	//Logger::new_line("#blocks (in-rows filter): (" + std::to_string(thread_grid_dim_inrows.x)
-	//	+ ", " + std::to_string(thread_grid_dim_inrows.y) + ")");
-	//Logger::new_line("#threads in block (in-rows filter): (" + std::to_string(kThreadBlockDimInRows.x)
-	//	+ ", " + std::to_string(kThreadBlockDimInRows.y) + ", " + std::to_string(kThreadBlockDimInRows.z) + ")");
-	//Logger::new_line("#blocks (in-cols filter): (" + std::to_string(thread_grid_dim_incols.x)
-	//	+ ", " + std::to_string(thread_grid_dim_incols.y) + ")");
-	//Logger::new_line("#blocks (in-cols blocky filter): (" + std::to_string(thread_grid_dim_incols_blocky.x)
-	//	+ ", " + std::to_string(thread_grid_dim_incols_blocky.y) + ")");
-	//Logger::new_line("#threads in block (in-cols blocky filter): (" + std::to_string(kThreadBlockDimInColsBlocky.x)
-	//	+ ", " + std::to_string(kThreadBlockDimInColsBlocky.y) + ", " + std::to_string(kThreadBlockDimInColsBlocky.z) + ")");
-	Logger::new_line("#blocks (in-cols in-rows blocky filter): (" + std::to_string(threadgriddim.x)
-		+ ", " + std::to_string(threadgriddim.y) + ")");
-	Logger::new_line("#threads in block (in-cols in-rows blocky filter): (" + std::to_string(threadblockdim.x)
-		+ ", " + std::to_string(threadblockdim.y) + ", " + std::to_string(threadblockdim.z) + ")");
+	Logger::new_line("#blocks: (" + std::to_string(threadgriddim_x)
+		+ ", " + std::to_string(threadgriddim_y) + ")");
+	Logger::new_line("#blocks 2: (" + std::to_string(threadgriddim2_x)
+		+ ", " + std::to_string(threadgriddim2_y) + ")");
+	const int tableblock_shmem_size_bytes = tableblockdim_x * tableblockdim_y * sizeof(float);
+	float run_time_allruns_ms = -1.0f;
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
 	for (int i_run = 0; i_run < num_kernel_runs; ++i_run) {
-		recursivefilter_downright_blocky<tableblockdim_x, tableblockdim_y>
-			<<<threadgriddim, dim3(tableblockdim_x)>>>
-			//<<<threadgriddim, dim3(tableblockdim_x), shared_memory_size_bytes>>>
-				(d_input, input.num_rows(), input.num_cols(),
+		recursivefilter_step1_inblocksdownright
+			<<<dim3(threadgriddim_x, threadgriddim_y),
+				dim3(std::max(tableblockdim_x, tableblockdim_y)),
+				tableblock_shmem_size_bytes>>>(
+				d_input, input.num_rows(), input.num_cols(), tableblockdim_x, tableblockdim_y,
 				filter_coeff_0, filter_coeff_1, d_blockwise_colwise_sums,
-				d_blockwise_rowwise_sums, d_aggregated_colwise_sums,
-				d_blockwise_rowwise_aggregatedcolsums, d_aggregated_rowwise_sums,
-				d_output);
-		//apply_recursive_filter_right<<<thread_grid_dim_inrows, kThreadBlockDimInRows>>>
-		//	(d_output_table_data, input_table.num_rows(), input_table.num_cols(), filter_coeffs[0], filter_coeffs[1], d_output_table_data);
-		//apply_recursive_filter_down<<<thread_grid_dim_incols, kThreadBlockDim>>>
-		//	(d_output_table_data, input_table.num_rows(), input_table.num_cols(), filter_coeffs[0], filter_coeffs[1], d_output_table_data);
+				d_blockwise_rowwise_sums);
+		recursivefilter_step2_overblocksdown
+			<<<dim3(threadgriddim_x), dim3(tableblockdim_x)>>>(
+				n_step2_overblocksdown_rows, input.num_cols(), tableblockdim_y, filter_coeff_0,
+				filter_coeff_1, d_blockwise_colwise_sums, d_aggregated_colwise_sums);
+		recursivefilter_step3_inoverblockscolsummedblocksright
+			<<<dim3(threadgriddim2_x, threadgriddim2_y), dim3(tableblockdim_x, tableblockdim_y)>>>(
+				n_step3_inoverblockscolsummedblocksright_rows, input.num_cols(),
+				n_step3_inoverblockscolsummedblocksright_cols, tableblockdim_x, filter_coeff_0,
+				filter_coeff_1, d_aggregated_colwise_sums, d_blockwise_rowwise_aggregatedcolsums);
+		recursivefilter_step4_overblocksright
+			<<<dim3(1, threadgriddim_y), dim3(1, tableblockdim_y)>>>(
+				input.num_rows(), n_recursivefilter_step4_overblocksright_cols, tableblockdim_x,
+				filter_coeff_0, filter_coeff_1, d_blockwise_rowwise_sums,
+				d_blockwise_rowwise_aggregatedcolsums, d_aggregated_rowwise_sums);
+		recursivefilter_step5_inblocksdownright
+			<<<dim3(threadgriddim_x, threadgriddim_y), dim3(std::max(tableblockdim_x, tableblockdim_y)),
+				tableblock_shmem_size_bytes>>>(
+				d_input, input.num_rows(), input.num_cols(), tableblockdim_x, tableblockdim_y,
+				filter_coeff_0, filter_coeff_1, d_aggregated_colwise_sums,
+				d_aggregated_rowwise_sums, d_finalsums);
+		//recursivefilter_downright_blocky<tableblockdim_x, tableblockdim_y>
+		//	<<<threadgriddim, dim3(std::max(tableblockdim_x, tableblockdim_y))>>>
+		//		(d_input, input.num_rows(), input.num_cols(),
+		//		filter_coeff_0, filter_coeff_1, d_blockwise_colwise_sums,
+		//		d_blockwise_rowwise_sums, d_aggregated_colwise_sums,
+		//		d_blockwise_rowwise_aggregatedcolsums, d_aggregated_rowwise_sums,
+		//		d_output);
 	}
-	//copy<<<n_thread_blocks, n_threads_in_block>>>
-	//	(d_input_table_data, input_table.num_rows(), input_table.num_cols(), d_output_table_data);
 	//cudaDeviceSynchronize();
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
-	float time_elapsed_ms = 0;
-	cudaEventElapsedTime(&time_elapsed_ms, start, stop);
+	cudaEventElapsedTime(&run_time_allruns_ms, start, stop);
+	const float run_time_1run_ms = run_time_allruns_ms / float(num_kernel_runs);
 	Logger::new_line("\nKernel execution time for "
 		+ std::to_string(input.num_cols()) + "x" + std::to_string(input.num_rows())
-		+ " [ms]: " + std::to_string(time_elapsed_ms / float(num_kernel_runs))
+		+ " [ms]: " + std::to_string(run_time_1run_ms)
 		+ " (average of " + std::to_string(num_kernel_runs) + " runs)");
 
-	float* h_blockwise_colwise_sums = (float*)malloc(n_blockwise_colwise_rows * input.num_cols() * sizeof(float));
-	cudaMemcpy(h_blockwise_colwise_sums, d_blockwise_colwise_sums, n_blockwise_colwise_rows
-		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost);
+	float* h_blockwise_colwise_sums = (float*)malloc(
+		n_blockwise_colwise_rows * input.num_cols() * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_blockwise_colwise_sums, d_blockwise_colwise_sums, n_blockwise_colwise_rows
+		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost));
 	CpuTable blockwise_colwise_sums(n_blockwise_colwise_rows, input.num_cols(), h_blockwise_colwise_sums);
 	if (n_blockwise_colwise_rows <= 12 && input.num_cols() <= 12) {
 		Logger::new_line("\nBlockwise-colwise table (light blue):\n" + blockwise_colwise_sums.toString());
 	}
-
-	float* h_blockwise_rowwise_sums = (float*)malloc(input.num_rows() * n_blockwise_rowwise_cols * sizeof(float));
-	cudaMemcpy(h_blockwise_rowwise_sums, d_blockwise_rowwise_sums, input.num_rows()
-		* n_blockwise_rowwise_cols * sizeof(float), cudaMemcpyDeviceToHost);
-	CpuTable blockwise_rowwise_sums(input.num_rows(), n_blockwise_rowwise_cols, h_blockwise_rowwise_sums);
-	if (input.num_rows() <= 12 && n_blockwise_rowwise_cols <= 12) {
+	float* h_step1_inblocksdownright = (float*)malloc(
+		input.num_rows() * n_step1_inblocksdownright_cols * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_step1_inblocksdownright, d_blockwise_rowwise_sums, input.num_rows()
+		* n_step1_inblocksdownright_cols * sizeof(float), cudaMemcpyDeviceToHost));
+	CpuTable blockwise_rowwise_sums(input.num_rows(), n_step1_inblocksdownright_cols, h_step1_inblocksdownright);
+	if (input.num_rows() <= 12 && n_step1_inblocksdownright_cols <= 12) {
 		Logger::new_line("\nBlockwise-rowwise table: (light green)\n" + blockwise_rowwise_sums.toString());
 	}
 
-	float* h_aggregated_colwise_sums = (float*)malloc(
-		n_aggregated_colwise_rows * input.num_cols() * sizeof(float));
-	cudaMemcpy(h_aggregated_colwise_sums, d_aggregated_colwise_sums, n_aggregated_colwise_rows
-		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost);
-	CpuTable aggregated_blockwise_colwise_sums(n_aggregated_colwise_rows, input.num_cols(), h_aggregated_colwise_sums);
-	if (n_aggregated_colwise_rows <= 12 && input.num_cols() <= 12) {
+	float* h_step2_overblocksdown = (float*)malloc(
+		n_step2_overblocksdown_rows * input.num_cols() * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_step2_overblocksdown, d_aggregated_colwise_sums, n_step2_overblocksdown_rows
+		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost));
+	CpuTable aggregated_blockwise_colwise_sums(n_step2_overblocksdown_rows, input.num_cols(), h_step2_overblocksdown);
+	if (n_step2_overblocksdown_rows <= 12 && input.num_cols() <= 12) {
 		Logger::new_line("\nAggregated blockwise-colwise table (dark blue):\n" + aggregated_blockwise_colwise_sums.toString());
 	}
 
-	float* h_blockwise_rowwise_aggregatedcolsums = (float*)malloc(
-		n_blockwise_rowwise_aggregatedcolsums_rows * n_blockwise_rowwise_aggregatedcolsums_cols * sizeof(float));
-	cudaMemcpy(h_blockwise_rowwise_aggregatedcolsums, d_blockwise_rowwise_aggregatedcolsums, n_blockwise_rowwise_aggregatedcolsums_rows
-		* n_blockwise_rowwise_aggregatedcolsums_cols * sizeof(float), cudaMemcpyDeviceToHost);
+	float* h_step3_inoverblockscolsummedblocksright = (float*)malloc(
+		n_step3_inoverblockscolsummedblocksright_rows * n_step3_inoverblockscolsummedblocksright_cols * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_step3_inoverblockscolsummedblocksright, d_blockwise_rowwise_aggregatedcolsums,
+		n_step3_inoverblockscolsummedblocksright_rows * n_step3_inoverblockscolsummedblocksright_cols * sizeof(float),
+		cudaMemcpyDeviceToHost));
 	CpuTable blockwise_rowwise_aggregatedcolsums(
-		n_blockwise_rowwise_aggregatedcolsums_rows, n_blockwise_rowwise_aggregatedcolsums_cols,
-		h_blockwise_rowwise_aggregatedcolsums);
-	if (n_blockwise_rowwise_aggregatedcolsums_rows <= 12 && n_blockwise_rowwise_aggregatedcolsums_cols <= 12) {
+		n_step3_inoverblockscolsummedblocksright_rows, n_step3_inoverblockscolsummedblocksright_cols,
+		h_step3_inoverblockscolsummedblocksright);
+	if (n_step3_inoverblockscolsummedblocksright_rows <= 12 && n_step3_inoverblockscolsummedblocksright_cols <= 12) {
 		Logger::new_line("\nBlockwise-rowwise aggregatedcolsum table (red):\n" + blockwise_rowwise_aggregatedcolsums.toString());
 	}
 
-	float* h_aggregated_rowwise_sums = (float*)malloc(input.num_rows() * n_aggregated_rowwise_cols * sizeof(float));
-	cudaMemcpy(h_aggregated_rowwise_sums, d_aggregated_rowwise_sums, input.num_rows()
-		* n_aggregated_rowwise_cols * sizeof(float), cudaMemcpyDeviceToHost);
-	CpuTable aggregated_rowwise_sums(input.num_rows(), n_aggregated_rowwise_cols, h_aggregated_rowwise_sums);
-	if (input.num_rows() <= 12 && n_aggregated_rowwise_cols <= 12) {
+	float* h_step4_overblocksright = (float*)malloc(
+		input.num_rows() * n_recursivefilter_step4_overblocksright_cols * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_step4_overblocksright, d_aggregated_rowwise_sums, input.num_rows()
+		* n_recursivefilter_step4_overblocksright_cols * sizeof(float), cudaMemcpyDeviceToHost));
+	CpuTable aggregated_rowwise_sums(input.num_rows(), n_recursivefilter_step4_overblocksright_cols, h_step4_overblocksright);
+	if (input.num_rows() <= 12 && n_recursivefilter_step4_overblocksright_cols <= 12) {
 		Logger::new_line("\nAggregated rowwise table (dark green):\n" + aggregated_rowwise_sums.toString());
 	}
 
-	float* h_output = (float*)malloc(input.num_rows() * input.num_cols() * sizeof(float));
-	cudaMemcpy(h_output, d_output, input.num_rows()
-		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost);
-	output.set(h_output);
-	if (output.num_rows() <= 12 && output.num_cols() <= 12) {
-		Logger::new_line("\nOutput table:\n" + output.toString());
+	float* h_final_sums = (float*)malloc(
+		input.num_rows() * input.num_cols() * sizeof(float));
+	chk_cu_err(cudaMemcpy(h_final_sums, d_finalsums, input.num_rows()
+		* input.num_cols() * sizeof(float), cudaMemcpyDeviceToHost));
+	CpuTable final_sums(input.num_rows(), input.num_cols(), h_final_sums);
+	if (final_sums.num_rows() <= PRINT_LIMIT_Y && final_sums.num_cols() <= PRINT_LIMIT_X) {
+		Logger::new_line("\nFinal sums:\n" + final_sums.toString());
 	}
 
-	cudaFree(d_input);
-	cudaFree(d_blockwise_colwise_sums);
-	free(h_blockwise_colwise_sums);
-	cudaFree(d_blockwise_rowwise_sums);
-	free(h_blockwise_rowwise_sums);
-	cudaFree(d_aggregated_colwise_sums);
-	free(h_aggregated_colwise_sums);
-	cudaFree(d_blockwise_rowwise_aggregatedcolsums);
-	free(h_blockwise_rowwise_aggregatedcolsums);
-	cudaFree(d_aggregated_rowwise_sums);
-	free(h_aggregated_rowwise_sums);
-	cudaFree(d_output);
-	free(h_output);
+	switch (output_step) {
+	case STEP_1: {
+		outputs[0].reset(n_step1_inblocksdownright_rows, input.num_cols());
+		outputs[0].set(h_blockwise_colwise_sums);
+		Logger::new_line("outputs[0]: " + outputs[0].toString());
+		outputs[1].reset(input.num_rows(), n_step1_inblocksdownright_cols);
+		outputs[1].set(h_step1_inblocksdownright);
+		break; }
+	case STEP_2: {
+		outputs[0].reset(n_step2_overblocksdown_rows, input.num_cols());
+		outputs[0].set(h_step2_overblocksdown);
+		break; }
+	case STEP_3: {
+		outputs[0].reset(n_step3_inoverblockscolsummedblocksright_rows, n_step3_inoverblockscolsummedblocksright_cols);
+		outputs[0].set(h_step3_inoverblockscolsummedblocksright);
+		break; }
+	case STEP_4: {
+		outputs[0].reset(input.num_rows(), n_recursivefilter_step4_overblocksright_cols);
+		outputs[0].set(h_step4_overblocksright);
+		break; }
+	case STEP_5_FINAL: {
+		outputs[0].reset(input.num_rows(), input.num_cols());
+		outputs[0].set(h_final_sums);
+		break; }
+	}
 
-	return time_elapsed_ms;
+	chk_cu_err(cudaFree(d_input));
+	free(h_input);
+	chk_cu_err(cudaFree(d_blockwise_colwise_sums));
+	free(h_blockwise_colwise_sums);
+	chk_cu_err(cudaFree(d_blockwise_rowwise_sums));
+	free(h_step1_inblocksdownright);
+	chk_cu_err(cudaFree(d_aggregated_colwise_sums));
+	free(h_step2_overblocksdown);
+	chk_cu_err(cudaFree(d_blockwise_rowwise_aggregatedcolsums));
+	free(h_step3_inoverblockscolsummedblocksright);
+	chk_cu_err(cudaFree(d_aggregated_rowwise_sums));
+	free(h_step4_overblocksright);
+	chk_cu_err(cudaFree(d_finalsums));
+	free(h_final_sums);
+
+	return run_time_1run_ms;
 }
 
 }

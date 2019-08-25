@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "helpers.hpp"
 
@@ -6,7 +6,9 @@
 
 using namespace gpuacademy;
 
-TEST(recursivefiltering, CpuTable_setSawTooth) {
+const float kMaxAbsError = 0.0005f;
+
+TEST(CpuTable, setSawTooth) {
 	const int n_rows = 3, n_cols = 4;
 	CpuTable input(n_rows, n_cols);
 	const float amplitude = 1.2f;
@@ -30,5 +32,5 @@ TEST(recursivefiltering, CpuTable_setSawTooth) {
 	Logger::new_line();
 	Logger::new_line();
 
-	ASSERT_TRUE(ground_truth.equals(input, kEpsilon));
+	ASSERT_TRUE(ground_truth.equals(input, kMaxAbsError));
 }
