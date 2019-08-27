@@ -2,6 +2,8 @@
 
 * Parallelize kernels with streams
 * Profile and fix occupancy
+* Use __ldg
+* Use intrinsic functions for calculations
 * Template so you can unroll the loops
 * Don't calculate last row/col of aggreg values (unused)
 
