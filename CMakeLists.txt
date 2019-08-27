@@ -83,7 +83,9 @@ target_link_libraries(${TEST_NAME} ${LIB_NAME}
 #    ${CMAKE_CURRENT_BINARY_DIR}/lib${LIB_NAME}.so
 )
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(${TEST_NAME} "gtest gtest_main pthread")
+    target_link_libraries(${TEST_NAME}
+        ${GTEST_LIBRARIES}
+        pthread)
 else()
     target_link_libraries(${TEST_NAME} "GTest::Main")
 endif ()

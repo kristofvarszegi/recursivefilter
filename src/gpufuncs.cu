@@ -5,6 +5,7 @@
 #include <cuda_runtime_api.h>
 
 #include <algorithm>
+#include <stdexcept>
 
 #define MAX_TABLEBLOCK_X 32
 #define MAX_TABLEBLOCK_Y 32

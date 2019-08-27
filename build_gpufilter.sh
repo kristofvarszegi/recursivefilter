@@ -1,4 +1,4 @@
-PROJECT_NAME=gpuacademy_recursivefiltering
+PROJECT_NAME=recursivefilter
 GPUFILTER_DIR=gpufilter
 
 if [[ "$OSTYPE" == "msys" ]]; then
@@ -15,4 +15,5 @@ export MAKEFLAGS=-j6
 cmake -H${GPUFILTER_DIR} -B${BUILD_PATH} \
     -DCMAKE_BUILD_TYPE=Release \
     -G"${GENERATE_PROJECT_TYPE}"
-cmake --build ${BUILD_PATH} --target install
+make
+#cmake --build ${BUILD_PATH} --target install

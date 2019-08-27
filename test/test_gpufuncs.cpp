@@ -13,9 +13,9 @@
 using namespace gpuacademy;
 
 const float kMaxAbsError = 0.005f;
-const float kMaxAuthorsBigTableRunTimeMs = 0.5f;
-const float kMaxBigTableRunTimeMs = 0.8f;
-const float kMaxHugeTableRunTimeMs = 3.0f;
+const float kMaxAuthorsBigTableRunTimeMs = 0.25f;
+const float kMaxBigTableRunTimeMs = 0.4f;
+const float kMaxHugeTableRunTimeMs = 1.5f;
 const float kSatFilterCoeffs[] = {1.0f, 1.0f};
 const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
 const int kAuthorsBigTableSizeX = 1024, kAuthorsBigTableSizeY = 1024;
