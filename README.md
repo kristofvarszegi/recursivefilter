@@ -1,7 +1,11 @@
 # TODO
 
-* Parallelize kernels with streams
+* Scan in step2 using shared memory
+* Scan in step3 using shared memory
+* Scan in step4 using shared memory
 * Profile and fix occupancy: min 64 threads/block
+* Remove colwise sum table from step1 globals
+* Parallelize kernels with streams
 * Use __ldg
 * Scan at in-block aggregs
 * Texture mem for input

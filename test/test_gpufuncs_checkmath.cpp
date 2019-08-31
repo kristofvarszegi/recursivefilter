@@ -19,8 +19,8 @@ const float kMaxHugeTableRunTimeMs = 1.5f;
 const float kSatFilterCoeffs[] = {1.0f, 1.0f};
 const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
 const int kAuthorsBigTableSizeX = 1024, kAuthorsBigTableSizeY = 1024;
-const int kBigTableSizeX = 2000, kBigTableSizeY = 1000;
-const int kHugeTableSizeX = 4000, kHugeTableSizeY = 2000;
+const int kBigTableSizeX = 2007, kBigTableSizeY = 1003;
+const int kHugeTableSizeX = 4007, kHugeTableSizeY = 2003;
 const int kNumKernelRunsForMeasuringTime = 100;
 
 TEST(GPU_funcs_checkmath, step1_satcoeffs) {
@@ -269,9 +269,9 @@ TEST(GPU_funcs_checkmath, step4_arbitrarycoeffs) {
 
   const int n_gt_rows = 5, n_gt_cols = (n_cols / config::kBlockSizeSmallX + 1);
   const float ground_truth_data[] = {
-      3.45195298555194, 3.27551493360004, 8.32589494977925, 8.29833254022669,
-      14.3575978912594, 5.40288262578305, 12.1762270487436, 6.30414386099312,
-      13.743826651178,  10.0101294612827,
+      3.45195298555194f, 3.27551493360004f, 8.32589494977925f, 8.29833254022669f,
+      14.3575978912594f, 5.40288262578305f, 12.1762270487436f, 6.30414386099312f,
+      13.743826651178f,  10.0101294612827f,
   };
   CpuTable ground_truth(n_gt_rows, n_gt_cols, &(*ground_truth_data));
 
@@ -339,7 +339,7 @@ TEST(GPU_funcs_checkmath, authorstinytable_arbitrarycoeffs) {
 TEST(GPU_funcs_checkmath, oddnumcols_arbitrarycoeffs) {
   const int n_rows = 8, n_cols = 7;
   CpuTable input(n_rows, n_cols);
-  input.setSawTooth(1.89, 11);
+  input.setSawTooth(1.89f, 11);
 
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
@@ -352,7 +352,7 @@ TEST(GPU_funcs_checkmath, oddnumcols_arbitrarycoeffs) {
 TEST(GPU_funcs_checkmath, oddnumrows_arbitrarycoeffs) {
   const int n_rows = 7, n_cols = 8;
   CpuTable input(n_rows, n_cols);
-  input.setSawTooth(1.89, 11);
+  input.setSawTooth(1.89f, 11);
 
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
@@ -365,7 +365,7 @@ TEST(GPU_funcs_checkmath, oddnumrows_arbitrarycoeffs) {
 TEST(GPU_funcs_checkmath, oddnumcolsnumrows_arbitrarycoeffs) {
   const int n_rows = 7, n_cols = 7;
   CpuTable input(n_rows, n_cols);
-  input.setSawTooth(1.89, 11);
+  input.setSawTooth(1.89f, 11);
 
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(

@@ -10,7 +10,7 @@
 
 namespace gpuacademy {
 
-CpuTable::CpuTable(int num_rows, int num_cols) {
+CpuTable::CpuTable(size_t num_rows, size_t num_cols) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -20,7 +20,7 @@ CpuTable::CpuTable(int num_rows, int num_cols) {
   resetData(num_rows, num_cols);
 }
 
-CpuTable::CpuTable(int num_rows, int num_cols, float fill_val) {
+CpuTable::CpuTable(size_t num_rows, size_t num_cols, float fill_val) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -35,7 +35,7 @@ CpuTable::CpuTable(int num_rows, int num_cols, float fill_val) {
   }
 }
 
-CpuTable::CpuTable(int num_rows, int num_cols, const float *data) {
+CpuTable::CpuTable(size_t num_rows, size_t num_cols, const float *data) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -49,7 +49,7 @@ CpuTable::CpuTable(int num_rows, int num_cols, const float *data) {
   set(data);
 }
 
-CpuTable::CpuTable(int num_rows, int num_cols, const int *data) {
+CpuTable::CpuTable(size_t num_rows, size_t num_cols, const int *data) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -65,15 +65,9 @@ CpuTable::CpuTable(int num_rows, int num_cols, const int *data) {
 
 CpuTable::~CpuTable() {}
 
-void CpuTable::set(int row_id, int col_id, float val) {
-  if (row_id < 0) {
-    throw std::runtime_error("Row ID must be at least 0");
-  }
+void CpuTable::set(size_t row_id, size_t col_id, float val) {
   if (row_id >= data_.size()) {
     throw std::runtime_error("Row ID must be less than the number of rows");
-  }
-  if (col_id < 0) {
-    throw std::runtime_error("Col ID must be at least 0");
   }
   if (col_id >= data_[0].size()) {
     throw std::runtime_error("Col ID must be less than the number of cols");
@@ -81,15 +75,9 @@ void CpuTable::set(int row_id, int col_id, float val) {
   data_[row_id][col_id] = val;
 }
 
-void CpuTable::add(int row_id, int col_id, float val) {
-  if (row_id < 0) {
-    throw std::runtime_error("Row ID must be at least 0");
-  }
+void CpuTable::add(size_t row_id, size_t col_id, float val) {
   if (row_id >= data_.size()) {
     throw std::runtime_error("Row ID must be less than the number of rows");
-  }
-  if (col_id < 0) {
-    throw std::runtime_error("Col ID must be at least 0");
   }
   if (col_id >= data_[0].size()) {
     throw std::runtime_error("Col ID must be less than the number of cols");
@@ -114,7 +102,7 @@ void CpuTable::set(const int *data) {
   }
 }
 
-void CpuTable::reset(int num_rows, int num_cols) {
+void CpuTable::reset(size_t num_rows, size_t num_cols) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -124,7 +112,7 @@ void CpuTable::reset(int num_rows, int num_cols) {
   resetData(num_rows, num_cols);
 }
 
-void CpuTable::reset(int num_rows, int num_cols, const float *data) {
+void CpuTable::reset(size_t num_rows, size_t num_cols, const float *data) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -135,7 +123,7 @@ void CpuTable::reset(int num_rows, int num_cols, const float *data) {
   set(data);
 }
 
-void CpuTable::resetData(int num_rows, int num_cols) {
+void CpuTable::resetData(size_t num_rows, size_t num_cols) {
   if (num_rows < 2) {
     throw std::runtime_error("Number of table rows must be at least 2");
   }
@@ -151,9 +139,9 @@ void CpuTable::resetData(int num_rows, int num_cols) {
 void CpuTable::setSawTooth(float amplitude, int period) {
   float val = -amplitude;
   const float increment = 2 * amplitude / static_cast<float>(period - 1);
-  for (int i_row = 0; i_row < data_.size(); ++i_row) {
-    for (int i_col = 0; i_col < data_[0].size(); ++i_col) {
-      const int index_1d = i_col + i_row * data_[0].size();
+  for (size_t i_row = size_t(0); i_row < data_.size(); ++i_row) {
+    for (size_t i_col = size_t(0); i_col < data_[0].size(); ++i_col) {
+      const size_t index_1d = i_col + i_row * data_[0].size();
       if (index_1d % period == 0) {
         val = -amplitude;
       } else {
@@ -175,21 +163,15 @@ void CpuTable::transpose() {
   data_ = new_data;
 }
 
-int CpuTable::num_rows() const { return data_.size(); }
+size_t CpuTable::num_rows() const { return data_.size(); }
 
-int CpuTable::num_cols() const { return data_[0].size(); }
+size_t CpuTable::num_cols() const { return data_[0].size(); }
 
 std::vector<std::vector<float>> CpuTable::data() const { return data_; }
 
-float CpuTable::get(int row_id, int col_id) const {
-  if (row_id < 0) {
-    throw std::runtime_error("Row ID must be at least 0");
-  }
+float CpuTable::get(size_t row_id, size_t col_id) const {
   if (row_id >= data_.size()) {
     throw std::runtime_error("Row ID must be less than the number of rows");
-  }
-  if (col_id < 0) {
-    throw std::runtime_error("Col ID must be at least 0");
   }
   if (col_id >= data_[0].size()) {
     throw std::runtime_error("Col ID must be less than the number of cols");
