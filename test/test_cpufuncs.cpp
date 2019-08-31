@@ -13,7 +13,7 @@ const float kMaxAbsError = 0.001f;
 const float kSatFilterCoeffs[] = {1.0f, 1.0f};
 const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
 
-TEST(CPU_funcs, sat_naive) {
+TEST(CPU_funcs, naive_sat) {
   const int n_rows = 5, n_cols = 5;
   const int input_data[] = {
       1, 0, 0, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 2,
@@ -35,7 +35,7 @@ TEST(CPU_funcs, sat_naive) {
   ASSERT_TRUE(ground_truth.equals(summed_area_table, kMaxAbsError));
 }
 
-TEST(CPU_funcs, filter_sat) {
+TEST(CPU_funcs, filtery_sat) {
   const int n_rows = 5, n_cols = 5;
   const int input_data[] = {
       1, 0, 0, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 2,
@@ -55,7 +55,7 @@ TEST(CPU_funcs, filter_sat) {
   ASSERT_TRUE(ground_truth.equals(summed_area_table, kMaxAbsError));
 }
 
-TEST(CPU_funcs, filter_arbitrary) {
+TEST(CPU_funcs, arbitrary_coeffs_filter) {
   const int n_rows = 5, n_cols = 5;
   const int input_data[] = {
       1, 0, 0, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 2,

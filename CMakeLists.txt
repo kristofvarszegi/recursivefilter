@@ -6,7 +6,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 ################################################################################
 
-
 find_package(CUDA REQUIRED)
 message("CUDA_DIR: \"${CUDA_DIR}\"")
 message("CUDA_TOOLKIT_ROOT_DIR: \"${CUDA_TOOLKIT_ROOT_DIR}\"")
@@ -33,9 +32,6 @@ include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
 include_directories(BEFORE include/${LIB_NAME})
 
 cuda_add_library(${LIB_NAME} ${HEADERS} ${SOURCES})
-#add_library(${LIB_NAME} ${HEADERS} ${SOURCES})
-#target_include_directories(${LIB_NAME} PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include)
-#target_include_directories(${LIB_NAME} PUBLIC include/${LIB_NAME})
 get_property(incl_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
 message("incl_dirs: \"${incl_dirs}\"")
 link_directories(${LIB_NAME} ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
@@ -52,7 +48,6 @@ install(TARGETS EXPORT ${LIB_NAME}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${LIB_NAME}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-#install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
 ################################################################################
 
@@ -60,41 +55,41 @@ enable_testing()
 
 find_package(GTest REQUIRED)
 message("GTest_DIR: \"${GTest_DIR}\"")
-#find_library(LIBNAME ${LIB_NAME} HINTS ${CMAKE_INSTALL_BINDIR})
 
-set(TEST_NAME test_${LIB_NAME})
-
+# Math check tests
+set(TEST_NAME "test_${LIB_NAME}_checkmath")
 add_executable(${TEST_NAME}
     ${HEADERS}
     test/main.cpp
     test/helpers.hpp test/helpers.cpp
     test/test_cpufuncs.cpp
     test/test_CpuTable.cpp
-    test/test_gpufuncs.cpp
+    test/test_gpufuncs_checkmath.cpp
 )
-#target_include_directories(${TEST_NAME} PUBLIC include/${LIB_NAME})
-#get_property(incl_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-#message("incl_dirs: \"${incl_dirs}\"")
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
-#get_property(lnk_dirs DIRECTORY PROPERTY LINK_DIRECTORIES)
-#message("lnk_dirs: \"${lnk_dirs}\"")
-target_link_libraries(${TEST_NAME} ${LIB_NAME}
-#    ${CMAKE_CURRENT_BINARY_DIR}/lib${LIB_NAME}.a
-#    ${CMAKE_CURRENT_BINARY_DIR}/lib${LIB_NAME}.so
-)
+target_link_libraries(${TEST_NAME} ${LIB_NAME})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(${TEST_NAME}
-        ${GTEST_LIBRARIES}
-        pthread)
+    target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES} pthread)
 else()
     target_link_libraries(${TEST_NAME} "GTest::Main")
 endif ()
-#get_target_property(lnk_libs ${TEST_NAME} LINK_LIBRARIES)
-#message("lnk_libs: \"${lnk_libs}\"")
+add_test(${TEST_NAME} COMMAND ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME})
+install(TARGETS EXPORT ${TEST_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
 
-add_test(
-    ${TEST_NAME}
-    COMMAND ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME}
+# Time measurement tests
+set(TEST_NAME "test_${LIB_NAME}_measuretime")
+add_executable(${TEST_NAME}
+    ${HEADERS}
+    test/main.cpp
+    test/helpers.hpp test/helpers.cpp
+    test/test_gpufuncs_measuretime.cpp
 )
-
+link_directories(${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(${TEST_NAME} ${LIB_NAME})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES} pthread)
+else()
+    target_link_libraries(${TEST_NAME} "GTest::Main")
+endif ()
+add_test(${TEST_NAME} COMMAND ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME})
 install(TARGETS EXPORT ${TEST_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})

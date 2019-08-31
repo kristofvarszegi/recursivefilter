@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <stdexcept>
 
-#define MAX_TABLEBLOCK_X 32
-#define MAX_TABLEBLOCK_Y 32
 #define SHMEM_PAD_X 1
 #define PRINT_LIMIT_X 8
 #define PRINT_LIMIT_Y 8
@@ -334,14 +332,6 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   }
   if (tableblockdim_y < 2) {
     throw std::runtime_error("Table block dim y must be at least 2");
-  }
-  if (tableblockdim_x > MAX_TABLEBLOCK_X) {
-    throw std::runtime_error("Table block dim x must be at most " +
-                             std::to_string(MAX_TABLEBLOCK_X));
-  }
-  if (tableblockdim_x > MAX_TABLEBLOCK_Y) {
-    throw std::runtime_error("Table block dim y must be at most " +
-                             std::to_string(MAX_TABLEBLOCK_Y));
   }
   if (num_kernel_runs < 1) {
     throw std::runtime_error("Number of kernel runs must be at least 1");

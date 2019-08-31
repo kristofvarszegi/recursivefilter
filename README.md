@@ -1,10 +1,13 @@
 # TODO
 
 * Parallelize kernels with streams
-* Profile and fix occupancy
+* Profile and fix occupancy: min 64 threads/block
 * Use __ldg
+* Scan at in-block aggregs
+* Texture mem for input
 * Use intrinsic functions for calculations
 * Template so you can unroll the loops
+* Pad global memory
 * Don't calculate last row/col of aggreg values (unused)
 
 # Tried and helped
