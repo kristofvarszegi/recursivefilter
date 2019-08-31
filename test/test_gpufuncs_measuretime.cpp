@@ -21,7 +21,7 @@ const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
 const int kAuthorsBigTableSizeX = 1024, kAuthorsBigTableSizeY = 1024;
 const int kBigTableSizeX = 2007, kBigTableSizeY = 1003;
 const int kHugeTableSizeX = 4007, kHugeTableSizeY = 2003;
-const int kNumKernelRunsForMeasuringTime = 1;
+const int kNumKernelRunsForMeasuringTime = 100;
 
 TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_arbitrarycoeffs) {
   const size_t n_rows = kAuthorsBigTableSizeY, n_cols = kAuthorsBigTableSizeX;

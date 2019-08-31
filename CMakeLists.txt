@@ -13,7 +13,7 @@ endif()
 find_package(CUDA REQUIRED)
 message("CUDA_DIR: \"${CUDA_DIR}\"")
 message("CUDA_TOOLKIT_ROOT_DIR: \"${CUDA_TOOLKIT_ROOT_DIR}\"")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -use_fast_math --ptxas-options=-v")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_61 -std=c++11 -use_fast_math --ptxas-options=-v")
 
 set(LIB_NAME ${CMAKE_PROJECT_NAME})
 

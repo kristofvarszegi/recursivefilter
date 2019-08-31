@@ -368,9 +368,9 @@ TEST(GPU_funcs_checkmath, authorstinytable_arbitrarycoeffs) {
 }
 
 TEST(GPU_funcs_checkmath, oddnumcols_arbitrarycoeffs) {
-  const size_t n_rows = 8, n_cols = 7;
-  CpuTable input(n_rows, n_cols);
-  input.setSawTooth(1.89f, 11);
+  const size_t n_rows = 8, n_cols = 5;
+  CpuTable input(n_rows, n_cols, 1.0f);
+  //input.setSawTooth(1.89f, 11);
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],

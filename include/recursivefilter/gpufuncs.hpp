@@ -7,7 +7,7 @@
 
 #ifdef __INTELLISENSE__
 void __syncthreads();
-// int __clz(int x);
+const float __ldg(const float *);
 #endif
 
 #include "CpuTable.hpp"

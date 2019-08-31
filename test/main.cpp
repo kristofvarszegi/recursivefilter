@@ -8,7 +8,8 @@ int main(int argc, char *argv[]) {
   Logger::new_line("sizeof(int): " + std::to_string(sizeof(int)));
   Logger::new_line();
 
-  // testing::GTEST_FLAG(filter) = "-GPU_funcs.*";
+  //::testing::GTEST_FLAG(filter) = "-GPU_funcs_checkmath.*";
+  //::testing::GTEST_FLAG(filter) = "*.oddnumcols_arbitrarycoeffs";
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

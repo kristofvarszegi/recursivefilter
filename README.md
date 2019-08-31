@@ -1,6 +1,5 @@
 # TODO
 
-* Use __ldg
 * Texture mem for input
 * Use intrinsic functions for calculations
 * Template so you can unroll the loops
@@ -12,12 +11,14 @@
 
 * Making shared memory accesses bank conflict-free by padding
 * Coalescing global memory accesses
+* const __restrict__ on global arrays
 
 # Tried but didn't help
 
 * Doing steps 2, 3, 4 with parallel-scan
  * One thread block per column: bad occupancy
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
+* Reading input-only global arrays with __ldg(.)
 * Implementing specific fast pow(float, int)
 
 # Troubleshooting
