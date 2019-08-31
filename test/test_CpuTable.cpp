@@ -9,7 +9,7 @@ using namespace gpuacademy;
 const float kMaxAbsError = 0.0005f;
 
 TEST(CpuTable, setSawTooth) {
-  const int n_rows = 3, n_cols = 4;
+  const size_t n_rows = 3, n_cols = 4;
   CpuTable input(n_rows, n_cols);
   const float amplitude = 1.2f;
   const int period = 3;
@@ -26,7 +26,7 @@ TEST(CpuTable, setSawTooth) {
 }
 
 TEST(CpuTable, transpose) {
-  const int n_rows = 2, n_cols = 3;
+  const size_t n_rows = 2, n_cols = 3;
   const int data[] = {1, 2, 3, 4, 5, 6};
   CpuTable input(n_rows, n_cols, data);
   const float ground_truth_data[] = {1, 4, 2, 5, 3, 6};

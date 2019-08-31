@@ -3,6 +3,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -219,6 +220,17 @@ bool CpuTable::equals(const CpuTable &other_table, float max_abserror) const {
     }
   }
   return true;
+}
+
+void CpuTable::saveToCsv(const std::string &filename) const {
+  std::ofstream table_file(filename);
+  for (int i_row = 0; i_row < num_rows(); ++i_row) {
+    for (int i_col = 0; i_col < num_cols(); ++i_col) {
+      table_file << get(i_row, i_col) << ",";
+    }
+    table_file << std::endl;
+  }
+  table_file.close();
 }
 
 } // namespace gpuacademy

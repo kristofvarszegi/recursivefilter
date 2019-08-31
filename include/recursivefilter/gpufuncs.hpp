@@ -7,6 +7,7 @@
 
 #ifdef __INTELLISENSE__
 void __syncthreads();
+// int __clz(int x);
 #endif
 
 #include "CpuTable.hpp"
@@ -18,15 +19,16 @@ namespace gpuacademy {
 enum OUTPUT_STEP { STEP_1, STEP_2, STEP_3, STEP_4, STEP_5_FINAL };
 
 namespace config {
-	const int kBlockSizeSmallX = 4;
-	const int kBlockSizeSmallY = kBlockSizeSmallX;
-	const int kBlockSizeLargeX = 32;
-	const int kBlockSizeLargeY = kBlockSizeLargeX;
-}
+enum BLOCK_SIZE_CLASS { SMALL, LARGE };
+size_t get_blockdim_2dgrid_x(config::BLOCK_SIZE_CLASS bsc);
+size_t get_blockdim_2dgrid_y(config::BLOCK_SIZE_CLASS bsc);
+size_t get_blockdim_1dgrid_x(config::BLOCK_SIZE_CLASS bsc);
+} // namespace config
 
 float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
-                                    float filter_coeff_1, size_t tableblockdim_x,
-	size_t tableblockdim_y, size_t num_kernel_runs,
+                                    float filter_coeff_1,
+                                    config::BLOCK_SIZE_CLASS block_size_class,
+                                    size_t num_kernel_runs,
                                     OUTPUT_STEP output_step,
                                     std::vector<CpuTable> &outputs);
 } // namespace gpuacademy

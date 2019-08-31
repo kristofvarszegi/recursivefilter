@@ -27,6 +27,7 @@ public:
   float get(size_t row_id, size_t col_id) const;
   std::string toString() const;
   bool equals(const CpuTable &other_table, float max_abserror) const;
+  void saveToCsv(const std::string &filename) const;
 
 private:
   std::vector<std::vector<float>> data_;

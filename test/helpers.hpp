@@ -14,10 +14,8 @@ struct comparison_result_t {
 
 comparison_result_t recursivefilter_and_compare_gpuvscpu(
     const CpuTable &input, float filter_coeff_0, float filter_coeff_1,
-    int tableblockdim_x, int tableblockdim_y, int num_kernel_runs,
+    config::BLOCK_SIZE_CLASS block_size_class, int num_kernel_runs,
     OUTPUT_STEP output_step, float max_abs_error, bool print_tables,
     bool save_csv);
-
-void save_to_csv(const CpuTable &table, const std::string &filename);
 
 } // namespace gpuacademy
