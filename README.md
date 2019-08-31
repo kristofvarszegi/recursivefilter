@@ -1,9 +1,13 @@
 # TODO
 
-* Texture mem for input
+* Merge transpose into step5
 * Use intrinsic functions for calculations
 * Template so you can unroll the loops
 * Pad global memory
+* Coeff pows to constant memory
+* Coeff pows by mult-aggreg
+* cudaHostMalloc() for pinned area
+* Texture mem for input
 * Switch to half precision
 * Don't calculate last row/col of aggreg values (unused)
 
@@ -12,6 +16,7 @@
 * Making shared memory accesses bank conflict-free by padding
 * Coalescing global memory accesses
 * const __restrict__ on global arrays
+* Fill final sum table as col-major and transpose afterwards with cuBLAS
 
 # Tried but didn't help
 

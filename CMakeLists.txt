@@ -39,7 +39,7 @@ cuda_add_library(${LIB_NAME} ${HEADERS} ${SOURCES})
 get_property(incl_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
 message("incl_dirs: \"${incl_dirs}\"")
 link_directories(${LIB_NAME} ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
-target_link_libraries(${LIB_NAME} cuda)
+target_link_libraries(${LIB_NAME} cuda cublas)
 set_target_properties(${LIB_NAME} PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
 message("CMAKE_INSTALL_PREFIX: \"${CMAKE_INSTALL_PREFIX}\"")

@@ -170,13 +170,40 @@ TEST(GPU_funcs_checkmath, step5_satcoeffs) {
   step5_outputs.emplace_back(n_gt_rows, n_gt_cols);
   const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
       input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL,
+      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
       step5_outputs);
   Logger::new_line("Step 5 output:");
   Logger::new_line(step5_outputs[0].toString());
   Logger::new_line();
 
   ASSERT_TRUE(step5_outputs[0].equals(ground_truth, kMaxAbsError));
+}
+
+TEST(GPU_funcs_checkmath, step6_satcoeffs) {
+	const size_t n_rows = 5, n_cols = 5;
+	const int input_data[] = {
+		1, 0, 0, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 2,
+	};
+	CpuTable input(n_rows, n_cols, &(*input_data));
+
+	const size_t n_gt_rows = 5, n_gt_cols = 5;
+	const int ground_truth_data[] = {
+		1,  1,  1, 2, 3,  3,  4,  5, 7,  10, 4,  7,  9,
+		13, 16, 5, 9, 11, 16, 20, 5, 10, 14, 20, 26,
+	};
+	CpuTable ground_truth(n_gt_rows, n_gt_cols, &(*ground_truth_data));
+
+	std::vector<CpuTable> step6_outputs;
+	step6_outputs.emplace_back(n_gt_rows, n_gt_cols);
+	const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+		input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
+		config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6,
+		step6_outputs);
+	Logger::new_line("Step 6 output:");
+	Logger::new_line(step6_outputs[0].toString());
+	Logger::new_line();
+
+	ASSERT_TRUE(step6_outputs[0].equals(ground_truth, kMaxAbsError));
 }
 
 TEST(GPU_funcs_checkmath, step1_arbitrarycoeffs) {
@@ -345,12 +372,45 @@ TEST(GPU_funcs_checkmath, step5_arbitrarycoeffs) {
   outputs.emplace_back(n_gt_rows, n_gt_cols);
   const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL, outputs);
+      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5, outputs);
   Logger::new_line("Step 5 output:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
 
   ASSERT_TRUE(outputs[0].equals(ground_truth, kMaxAbsError));
+}
+
+TEST(GPU_funcs_checkmath, step6_arbitrarycoeffs) {
+	const size_t n_rows = 5, n_cols = 5;
+	const int input_data[] = {
+		1, 0, 0, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 2, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 2,
+	};
+	CpuTable input(n_rows, n_cols, &(*input_data));
+
+	const size_t n_gt_rows = 5, n_gt_cols = 5;
+	const float ground_truth_data[] = {
+		2.968729f,         1.620926034f,      0.885025614564f,
+		3.45195298555194f, 4.85349533011136f, 7.558384034f,
+		7.095606682564f,   6.84293024867995f, 8.32589494977925f,
+		12.1043226765795f, 7.095606682564f,   11.4325852826799f,
+		10.8318465983433f, 14.3575978912594f, 11.9661261311916f,
+		6.84293024867995f, 10.8318465983433f, 8.42013989125942f,
+		12.1762270487436f, 11.8702241832939f, 3.73623991577925f,
+		8.88291724269542f, 12.1557804146276f, 13.743826651178f,
+		16.2928016527584f,
+	};
+	CpuTable ground_truth(n_gt_rows, n_gt_cols, &(*ground_truth_data));
+
+	std::vector<CpuTable> outputs;
+	outputs.emplace_back(n_gt_rows, n_gt_cols);
+	const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+		input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
+		config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6, outputs);
+	Logger::new_line("Step 5 output:");
+	Logger::new_line(outputs[0].toString());
+	Logger::new_line();
+
+	ASSERT_TRUE(outputs[0].equals(ground_truth, kMaxAbsError));
 }
 
 TEST(GPU_funcs_checkmath, authorstinytable_arbitrarycoeffs) {
@@ -362,7 +422,7 @@ TEST(GPU_funcs_checkmath, authorstinytable_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -374,7 +434,7 @@ TEST(GPU_funcs_checkmath, oddnumcols_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -386,7 +446,7 @@ TEST(GPU_funcs_checkmath, oddnumrows_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -398,7 +458,7 @@ TEST(GPU_funcs_checkmath, oddnumcolsnumrows_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -412,7 +472,7 @@ TEST(GPU_funcs_checkmath, authorsbigtable_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -426,7 +486,7 @@ TEST(GPU_funcs_checkmath, bigtable_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -439,7 +499,7 @@ TEST(GPU_funcs_checkmath, hugetable_fullonesfill_satcoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -453,7 +513,7 @@ TEST(GPU_funcs_checkmath, hugetable_arbitraryfill_satcoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -467,7 +527,7 @@ TEST(GPU_funcs_checkmath, hugetable_arbitraryfill_arbitrarycoeffs) {
   const comparison_result_t comparison_result =
       recursivefilter_and_compare_gpuvscpu(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5_FINAL,
+          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_6,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }

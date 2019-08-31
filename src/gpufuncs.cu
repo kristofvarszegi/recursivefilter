@@ -1,9 +1,9 @@
 #include "Logger.hpp"
 #include "gpufuncs.hpp"
 
-#include <crt/device_functions.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cublas_v2.h>
 
 #include <algorithm>
 #include <stdexcept>
@@ -75,6 +75,12 @@ inline void chk_cu_err(cudaError_t code) {
     throw std::runtime_error("Error: " + std::string(cudaGetErrorString(code)) +
                              "\n");
   }
+}
+
+inline void chk_cublas_err(cublasStatus_t code) {
+	if (code != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error("cuBLAS error: " + code);
+	}
 }
 
 __global__ void recursivefilter_step1_inblocksdownright(
@@ -242,8 +248,8 @@ __global__ void recursivefilter_step5_inblocksdownright(
          ++y_in_thisblock) {
       aggregated_sum =
           filter_coeff_0 *
-              input[global_tid_x +
-                    (thisblock_start_y_global + y_in_thisblock) * num_cols] +
+		  __ldg((const float*)&input[global_tid_x +
+                    (thisblock_start_y_global + y_in_thisblock) * num_cols]) +
           filter_coeff_1 * prev_aggregated_sum;
       prev_aggregated_sum = aggregated_sum;
       aggregated_colwise_sums_thisblock[threadIdx.x +
@@ -274,8 +280,10 @@ __global__ void recursivefilter_step5_inblocksdownright(
                                                                SHMEM_PAD_X)] +
           filter_coeff_1 * prev_aggregated_sum; // Yes, threadIdx.x (not .y)
       prev_aggregated_sum = aggregated_sum;
-      final_sums[(thisblock_start_x_global + x_in_thisblock) +
-                 global_tid_y * num_cols] = aggregated_sum;
+	  final_sums[global_tid_y + (thisblock_start_x_global + x_in_thisblock) * num_rows] = aggregated_sum;
+	  // Transposed to coalesce global memory accesses
+      //final_sums[(thisblock_start_x_global + x_in_thisblock) +
+      //           global_tid_y * num_cols] = aggregated_sum;
     }
   }
 }
@@ -318,15 +326,14 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
       h_input[i_col + i_row * input.num_cols()] = input.get(i_row, i_col);
     }
   }
+  //texture<float, 2, cudaReadModeElementType> input_texture;
   float *d_input;
-  // chk_cu_err(cudaMalloc(&d_input, input.num_rows() * input.num_cols() *
-  // sizeof(float)));
   chk_cu_err(cudaMalloc((void **)(&d_input),
                         input.num_rows() * input.num_cols() * sizeof(float)));
   chk_cu_err(cudaMemcpy(d_input, h_input,
                         input.num_rows() * input.num_cols() * sizeof(float),
                         cudaMemcpyHostToDevice));
-
+ 
   const size_t blockdim_2dgrid_x = get_blockdim_2dgrid_x(block_size_class);
   const size_t blockdim_2dgrid_y = get_blockdim_2dgrid_y(block_size_class);
   const size_t blockdim_1dgrid_x = get_blockdim_1dgrid_x(block_size_class);
@@ -414,40 +421,40 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   // const int n_step2_scansteps =
   // static_cast<int>(log2(threadblockdim_step2.y));
 
-  float *d_blockwise_colwise_sums;
+  float *d_step1_blockwise_colwise_sums;
   const size_t n_step1_inblocksdown_rows = griddim_step1.y;
   chk_cu_err(
-      cudaMalloc((void **)(&d_blockwise_colwise_sums),
+      cudaMalloc((void **)(&d_step1_blockwise_colwise_sums),
                  input.num_cols() * n_step1_inblocksdown_rows * sizeof(float)));
   Logger::new_line("Blockwise-colwise table dims: (" +
                    std::to_string(input.num_cols()) + ", " +
                    std::to_string(n_step1_inblocksdown_rows) + ")");
 
   float
-      *d_blockwise_rowwise_sums; // Transposed to coalesce global memory access
+      *d_step1_blockwise_rowwise_sums; // Transposed to coalesce global memory accesses
   const size_t n_step1_inblocksdownright_cols = griddim_step1.x;
-  chk_cu_err(cudaMalloc((void **)(&d_blockwise_rowwise_sums),
+  chk_cu_err(cudaMalloc((void **)(&d_step1_blockwise_rowwise_sums),
                         input.num_rows() * n_step1_inblocksdownright_cols *
                             sizeof(float)));
   Logger::new_line("Blockwise-rowwise table dims (transposed!): (" +
                    std::to_string(input.num_rows()) + ", " +
                    std::to_string(n_step1_inblocksdownright_cols) + ")");
 
-  float *d_aggregated_colwise_sums;
+  float *d_step2_aggregated_colwise_sums;
   const size_t n_step2_overblocksdown_rows = n_step1_inblocksdown_rows;
-  chk_cu_err(cudaMalloc((void **)(&d_aggregated_colwise_sums),
+  chk_cu_err(cudaMalloc((void **)(&d_step2_aggregated_colwise_sums),
                         input.num_cols() * n_step2_overblocksdown_rows *
                             sizeof(float)));
   Logger::new_line("Aggregated colwise table dims: (" +
                    std::to_string(input.num_cols()) + ", " +
                    std::to_string(n_step2_overblocksdown_rows) + ")");
 
-  float *d_blockwise_rowwise_aggregatedcolsums;	// Transposed to coalesce global memory accesses
+  float *d_step3_blockwise_rowwise_aggregatedcolsums;	// Transposed to coalesce global memory accesses
   const size_t n_step3_inoverblockscolsummedblocksright_rows =
       n_step2_overblocksdown_rows;
   const size_t n_step3_inoverblockscolsummedblocksright_cols =
       n_step1_inblocksdownright_cols;
-  chk_cu_err(cudaMalloc((void **)(&d_blockwise_rowwise_aggregatedcolsums),
+  chk_cu_err(cudaMalloc((void **)(&d_step3_blockwise_rowwise_aggregatedcolsums),
                         n_step3_inoverblockscolsummedblocksright_cols *
                             n_step3_inoverblockscolsummedblocksright_rows *
                             sizeof(float)));
@@ -456,10 +463,10 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
       std::to_string(n_step3_inoverblockscolsummedblocksright_cols) + ", " +
       std::to_string(n_step3_inoverblockscolsummedblocksright_rows) + ")");
 
-  float *d_aggregated_rowwise_sums;	// Transposed to coalesce global memory accesses
+  float *d_step4_aggregated_rowwise_sums;	// Transposed to coalesce global memory accesses
   const size_t n_recursivefilter_step4_overblocksright_cols =
       n_step1_inblocksdownright_cols;
-  chk_cu_err(cudaMalloc((void **)(&d_aggregated_rowwise_sums),
+  chk_cu_err(cudaMalloc((void **)(&d_step4_aggregated_rowwise_sums),
                         n_recursivefilter_step4_overblocksright_cols *
                             input.num_rows() * sizeof(float)));
   Logger::new_line(
@@ -467,9 +474,15 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
       std::to_string(n_recursivefilter_step4_overblocksright_cols) + ", " +
       std::to_string(input.num_rows()) + ")");
 
-  float *d_finalsums;
-  chk_cu_err(cudaMalloc((void **)(&d_finalsums),
-                        input.num_rows() * input.num_cols() * sizeof(float)));
+  float *d_step5_finalsums_colmajor; // Transposed to coalesce global memory accesses
+  chk_cu_err(cudaMalloc((void **)(&d_step5_finalsums_colmajor), input.num_cols() * input.num_rows() * sizeof(float)));
+  //chk_cu_err(cudaMalloc((void **)(&d_finalsums), input.num_rows() * input.num_cols() * sizeof(float)));
+
+  float *d_step6_finalsums_rowmajor;
+  chk_cu_err(cudaMalloc((void **)(&d_step6_finalsums_rowmajor), input.num_rows() * input.num_cols() * sizeof(float)));
+  const float transpose_alpha = 1.0f, transpose_beta = 0.0f;
+  cublasHandle_t handle;
+  chk_cublas_err(cublasCreate(&handle));
 
   float run_time_allruns_ms = -1.0f;
   cudaEvent_t start, stop;
@@ -480,29 +493,32 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
     recursivefilter_step1_inblocksdownright<<<griddim_step1, blockdim_step1,
                                               shmemsizebytes_step1>>>(
         d_input, int(input.num_rows()), int(input.num_cols()), filter_coeff_0,
-        filter_coeff_1, d_blockwise_colwise_sums, d_blockwise_rowwise_sums);
+        filter_coeff_1, d_step1_blockwise_colwise_sums, d_step1_blockwise_rowwise_sums);
     recursivefilter_step2_overblocksdown<<<griddim_step2, blockdim_step2>>>(
         int(n_step2_overblocksdown_rows), int(input.num_cols()),
-        filter_coeff_1_toblockdimypow, d_blockwise_colwise_sums,
-        d_aggregated_colwise_sums);
+        filter_coeff_1_toblockdimypow, d_step1_blockwise_colwise_sums,
+        d_step2_aggregated_colwise_sums);
     recursivefilter_step3_inoverblockscolsummedblocksright<<<griddim_step3,
                                                              blockdim_step3>>>(
         int(n_step3_inoverblockscolsummedblocksright_rows),
         int(input.num_cols()),
         int(n_step3_inoverblockscolsummedblocksright_cols),
         int(blockdim_2dgrid_x), filter_coeff_0, filter_coeff_1,
-        d_aggregated_colwise_sums, d_blockwise_rowwise_aggregatedcolsums);
+        d_step2_aggregated_colwise_sums, d_step3_blockwise_rowwise_aggregatedcolsums);
     recursivefilter_step4_overblocksright<<<griddim_step4, blockdim_step4>>>(
         int(input.num_rows()),
         int(n_recursivefilter_step4_overblocksright_cols),
         int(n_step3_inoverblockscolsummedblocksright_rows), blockdim_step1.x, filter_coeff_1,
-        filter_coeff_1_toblockdimxpow, d_blockwise_rowwise_sums,
-        d_blockwise_rowwise_aggregatedcolsums, d_aggregated_rowwise_sums);
+        filter_coeff_1_toblockdimxpow, d_step1_blockwise_rowwise_sums,
+        d_step3_blockwise_rowwise_aggregatedcolsums, d_step4_aggregated_rowwise_sums);
     recursivefilter_step5_inblocksdownright<<<griddim_step5, blockdim_step5,
                                               shmemsizebytes_step5>>>(
         d_input, int(input.num_rows()), int(input.num_cols()), filter_coeff_0,
-        filter_coeff_1, d_aggregated_colwise_sums, d_aggregated_rowwise_sums,
-        d_finalsums);
+        filter_coeff_1, d_step2_aggregated_colwise_sums, d_step4_aggregated_rowwise_sums,
+        d_step5_finalsums_colmajor);
+	chk_cublas_err(cublasSgeam(handle, CUBLAS_OP_T, CUBLAS_OP_T, int(input.num_cols()), int(input.num_rows()),
+		&transpose_alpha, d_step5_finalsums_colmajor, int(input.num_rows()),
+		&transpose_beta, d_step5_finalsums_colmajor, int(input.num_rows()), d_step6_finalsums_rowmajor, int(input.num_cols())));
   }
   // cudaDeviceSynchronize();
   cudaEventRecord(stop);
@@ -518,7 +534,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   float *h_blockwise_colwise_sums = (float *)malloc(
       n_step1_inblocksdown_rows * input.num_cols() * sizeof(float));
   chk_cu_err(
-      cudaMemcpy(h_blockwise_colwise_sums, d_blockwise_colwise_sums,
+      cudaMemcpy(h_blockwise_colwise_sums, d_step1_blockwise_colwise_sums,
                  n_step1_inblocksdown_rows * input.num_cols() * sizeof(float),
                  cudaMemcpyDeviceToHost));
   CpuTable blockwise_colwise_sums(n_step1_inblocksdown_rows, input.num_cols(),
@@ -529,7 +545,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   }
   float *h_step1_inblocksdownright = (float *)malloc(
       n_step1_inblocksdownright_cols * input.num_rows() * sizeof(float));
-  chk_cu_err(cudaMemcpy(h_step1_inblocksdownright, d_blockwise_rowwise_sums,
+  chk_cu_err(cudaMemcpy(h_step1_inblocksdownright, d_step1_blockwise_rowwise_sums,
                         n_step1_inblocksdownright_cols * input.num_rows() *
                             sizeof(float),
                         cudaMemcpyDeviceToHost));
@@ -545,7 +561,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   float *h_step2_overblocksdown = (float *)malloc(
       n_step2_overblocksdown_rows * input.num_cols() * sizeof(float));
   chk_cu_err(
-      cudaMemcpy(h_step2_overblocksdown, d_aggregated_colwise_sums,
+      cudaMemcpy(h_step2_overblocksdown, d_step2_aggregated_colwise_sums,
                  n_step2_overblocksdown_rows * input.num_cols() * sizeof(float),
                  cudaMemcpyDeviceToHost));
   CpuTable aggregated_blockwise_colwise_sums(
@@ -559,7 +575,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
       n_step3_inoverblockscolsummedblocksright_cols *
       n_step3_inoverblockscolsummedblocksright_rows * sizeof(float));
   chk_cu_err(cudaMemcpy(h_step3_inoverblockscolsummedblocksright,
-                        d_blockwise_rowwise_aggregatedcolsums,
+                        d_step3_blockwise_rowwise_aggregatedcolsums,
                         n_step3_inoverblockscolsummedblocksright_cols *
                             n_step3_inoverblockscolsummedblocksright_rows *
                             sizeof(float),
@@ -578,7 +594,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
   float *h_step4_overblocksright =
       (float *)malloc(n_recursivefilter_step4_overblocksright_cols *
                       input.num_rows() * sizeof(float));
-  chk_cu_err(cudaMemcpy(h_step4_overblocksright, d_aggregated_rowwise_sums,
+  chk_cu_err(cudaMemcpy(h_step4_overblocksright, d_step4_aggregated_rowwise_sums,
                         n_recursivefilter_step4_overblocksright_cols *
                             input.num_rows() * sizeof(float),
                         cudaMemcpyDeviceToHost));
@@ -591,15 +607,28 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
                      aggregated_rowwise_sums.toString());
   }
 
-  float *h_final_sums =
+  float *h_step5_finalsums_colmajor =
+      (float *)malloc(input.num_cols() * input.num_rows() * sizeof(float));
+  chk_cu_err(cudaMemcpy(h_step5_finalsums_colmajor, d_step5_finalsums_colmajor,
+                        input.num_cols() * input.num_rows() * sizeof(float),
+                        cudaMemcpyDeviceToHost));
+  CpuTable finalsums_colmajor(input.num_cols(), input.num_rows(), h_step5_finalsums_colmajor);
+  finalsums_colmajor.transpose();
+  if (finalsums_colmajor.num_rows() <= PRINT_LIMIT_Y &&
+      finalsums_colmajor.num_cols() <= PRINT_LIMIT_X) {
+    Logger::new_line("\nFinal sums (from col-major):\n" + finalsums_colmajor.toString());
+  }
+
+  finalsums_colmajor.transpose();
+  float *h_step6_finalsums_rowmajor =
       (float *)malloc(input.num_rows() * input.num_cols() * sizeof(float));
-  chk_cu_err(cudaMemcpy(h_final_sums, d_finalsums,
+  chk_cu_err(cudaMemcpy(h_step6_finalsums_rowmajor, d_step6_finalsums_rowmajor,
                         input.num_rows() * input.num_cols() * sizeof(float),
                         cudaMemcpyDeviceToHost));
-  CpuTable final_sums(input.num_rows(), input.num_cols(), h_final_sums);
-  if (final_sums.num_rows() <= PRINT_LIMIT_Y &&
-      final_sums.num_cols() <= PRINT_LIMIT_X) {
-    Logger::new_line("\nFinal sums:\n" + final_sums.toString());
+  CpuTable finalsums_rowmajor(input.num_rows(), input.num_cols(), h_step6_finalsums_rowmajor);
+  if (finalsums_rowmajor.num_rows() <= PRINT_LIMIT_Y &&
+	  finalsums_rowmajor.num_cols() <= PRINT_LIMIT_X) {
+	  Logger::new_line("\nFinal sums (from row-major):\n" + finalsums_colmajor.toString());
   }
 
   if (SAVE_TABLES_TO_CSV) {
@@ -610,7 +639,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
 	  blockwise_rowwise_aggregatedcolsums.saveToCsv(
 		  "step2_blockwise_rowwise_aggregatedcolsums.csv");
 	  aggregated_rowwise_sums.saveToCsv("step4_aggregated_rowwise_sums.csv");
-	  final_sums.saveToCsv("step5_final_sums.csv");
+	  finalsums_colmajor.saveToCsv("step5_final_sums.csv");
   }
 
   switch (output_step) {
@@ -640,26 +669,32 @@ float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
     outputs[0].transpose();
     break;
   }
-  case STEP_5_FINAL: {
-    outputs[0].reset(input.num_rows(), input.num_cols(), h_final_sums);
+  case STEP_5: {
+	outputs[0].reset(input.num_cols(), input.num_rows(), h_step5_finalsums_colmajor);
+	outputs[0].transpose();
+    //outputs[0].reset(input.num_rows(), input.num_cols(), h_final_sums);
     break;
+  }
+  case STEP_6: {
+	  outputs[0].reset(input.num_rows(), input.num_cols(), h_step6_finalsums_rowmajor);
+	  break;
   }
   }
 
   chk_cu_err(cudaFree(d_input));
   free(h_input);
-  chk_cu_err(cudaFree(d_blockwise_colwise_sums));
+  chk_cu_err(cudaFree(d_step1_blockwise_colwise_sums));
   free(h_blockwise_colwise_sums);
-  chk_cu_err(cudaFree(d_blockwise_rowwise_sums));
+  chk_cu_err(cudaFree(d_step1_blockwise_rowwise_sums));
   free(h_step1_inblocksdownright);
-  chk_cu_err(cudaFree(d_aggregated_colwise_sums));
+  chk_cu_err(cudaFree(d_step2_aggregated_colwise_sums));
   free(h_step2_overblocksdown);
-  chk_cu_err(cudaFree(d_blockwise_rowwise_aggregatedcolsums));
+  chk_cu_err(cudaFree(d_step3_blockwise_rowwise_aggregatedcolsums));
   free(h_step3_inoverblockscolsummedblocksright);
-  chk_cu_err(cudaFree(d_aggregated_rowwise_sums));
+  chk_cu_err(cudaFree(d_step4_aggregated_rowwise_sums));
   free(h_step4_overblocksright);
-  chk_cu_err(cudaFree(d_finalsums));
-  free(h_final_sums);
+  chk_cu_err(cudaFree(d_step5_finalsums_colmajor));
+  free(h_step5_finalsums_colmajor);
 
   return run_time_1run_ms;
 }

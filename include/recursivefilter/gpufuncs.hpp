@@ -16,7 +16,7 @@ const float __ldg(const float *);
 
 namespace gpuacademy {
 
-enum OUTPUT_STEP { STEP_1, STEP_2, STEP_3, STEP_4, STEP_5_FINAL };
+enum OUTPUT_STEP { STEP_1, STEP_2, STEP_3, STEP_4, STEP_5, STEP_6 };
 
 namespace config {
 enum BLOCK_SIZE_CLASS { SMALL, LARGE };
