@@ -143,7 +143,8 @@ __global__ void recursivefilter_step4_overblocksright(
 
   if (global_tid_y < num_rows) {
     float aggregated_sum, prev_aggregated_sum = 0.0f;
-	const int bwrwaggcs_row_id = global_tid_y / num_rows_in2dblock;
+    const int bwrwaggcs_row_id = global_tid_y / num_rows_in2dblock;
+    float feedback_coeff_pow = powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1);
     for (int x_in_row = 0; x_in_row < num_aggregated_cols; ++x_in_row) {  // Could be unrolled if targeting certain specific table sizes
       aggregated_sum =
 		  __ldg((const float*)&blockwise_rowwise_sums[global_tid_y + x_in_row * num_rows]) +
@@ -151,7 +152,8 @@ __global__ void recursivefilter_step4_overblocksright(
       // Transposed to coalesce global memory access
       if (bwrwaggcs_row_id > 0) {
         aggregated_sum +=
-            powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1) *
+            feedback_coeff_pow *
+            //powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1) *
 			__ldg((const float*)&blockwise_rowwise_aggregatedcolsums[(bwrwaggcs_row_id - 1) +
                                                 x_in_row * num_aggregated_rows]);
         // Transposed to coalesce global memory access
@@ -401,7 +403,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
 
   float *d_step5_finalsums_rowmajor;
   chk_cu_err(cudaMalloc((void **)(&d_step5_finalsums_rowmajor), input.num_rows() * input.num_cols() * sizeof(float)));
-
+  
   float run_time_allruns_ms = -1.0f;
   cudaEvent_t start, stop;
   cudaEventCreate(&start);

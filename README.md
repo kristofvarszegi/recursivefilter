@@ -10,6 +10,13 @@
 * Switch to half precision
 * Don't calculate last row/col of aggreg values (unused)
 
+# Specification
+
+Given a table of floating point numbers, apply the filter "y_i = feedfwd_coeff * x_i + feedback_coeff * y_i-1" along columns then along rows.
+
+* Support arbitrary table sizes
+* Support arbitrary thread block dims
+
 # Tried and helped
 
 * Making shared memory accesses bank conflict-free by padding
