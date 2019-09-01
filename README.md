@@ -1,8 +1,6 @@
 # TODO
 
 * Use intrinsic functions for calculations
-* Pad global memory
-* cudaHostMalloc() for pinned area
 * Texture mem for input
 * Switch to half precision
 * Don't calculate last row/col of aggreg values (unused)
@@ -30,6 +28,7 @@ Given a table of floating point numbers, apply the filter "y_i = feedfwd_coeff *
 * Reading input-only global arrays with __ldg(.)
 * Unrolling "for" loops in kernels by templating
 * Aligning thread block dim to 128byte for global memory accesses in 2dgrid kernels: optimum also considering between block limitation and shared memory limitation was not divisor of 128
+* Aligning tables to 128bytes for global memory accesses
 * Implementing specific fast pow(float, int)
 
 # Troubleshooting

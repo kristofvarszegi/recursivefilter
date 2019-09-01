@@ -13,9 +13,9 @@
 using namespace gpuacademy;
 
 const float kMaxAbsError = 0.005f;
-const float kMaxAuthorsBigTableRunTimeMs = 0.165f;
-const float kMaxBigTableRunTimeMs = 0.305f;
-const float kMaxHugeTableRunTimeMs = 1.200f;
+const float kMaxAuthorsBigTableRunTimeMs = 0.160f;
+const float kMaxBigTableRunTimeMs = 0.300f;
+const float kMaxHugeTableRunTimeMs = 1.195f;
 const float kSatFilterCoeffs[] = {1.0f, 1.0f};
 const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
 const int kAuthorsBigTableSizeX = 1024, kAuthorsBigTableSizeY = 1024;
@@ -30,10 +30,13 @@ TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Authors' table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   Logger::new_line();
-  Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxAuthorsBigTableRunTimeMs));
+  Logger::new_line("Expected max. kernel execution time: " +
+                   std::to_string(kMaxAuthorsBigTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
+                                           config::kBlockDim1dGridLarge,
+                                           config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
@@ -47,10 +50,13 @@ TEST(GPU_funcs_measuretime, bigtable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Big table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   Logger::new_line();
-  Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxBigTableRunTimeMs));
+  Logger::new_line("Expected max. kernel execution time: " +
+                   std::to_string(kMaxBigTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
+                                           config::kBlockDim1dGridLarge,
+                                           config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
@@ -64,10 +70,13 @@ TEST(GPU_funcs_measuretime, hugetable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Huge table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   Logger::new_line();
-  Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxHugeTableRunTimeMs));
+  Logger::new_line("Expected max. kernel execution time: " +
+                   std::to_string(kMaxHugeTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
+                                           config::kBlockDim1dGridLarge,
+                                           config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
