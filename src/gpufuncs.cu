@@ -44,7 +44,7 @@ __global__ void recursivefilter_step1_inblocksdownright(
   
   if (global_tid_x < num_cols) {
     float aggregated_sum, prev_aggregated_sum = 0.0f;
-    for (int y_in_thisblock = 0; y_in_thisblock < BLOCKDIM;
+    for (int y_in_thisblock = 0; y_in_thisblock < blockDim.x;
          ++y_in_thisblock) {
       if (blockIdx.y * blockDim.x + y_in_thisblock < num_rows) {
         aggregated_sum =
@@ -67,7 +67,7 @@ __global__ void recursivefilter_step1_inblocksdownright(
 
   if (global_tid_y < num_rows && threadIdx.x < blockDim.x) {
     float aggregated_sum, prev_aggregated_sum = 0.0f;
-    for (int x_in_thisblock = 0; x_in_thisblock < BLOCKDIM;
+    for (int x_in_thisblock = 0; x_in_thisblock < blockDim.x;
          ++x_in_thisblock) {
       if (blockIdx.x * blockDim.x + x_in_thisblock < num_cols) {
         aggregated_sum =
@@ -192,6 +192,10 @@ __global__ void recursivefilter_step5_inblocksdownright(
   const int global_tid_y = blockIdx.y * blockDim.x + threadIdx.x;
   // Yes, blockDim.x and threadIdx.x (not .y), as we have a 1D thread array
   // within a thread block
+  const int y_in_thisblock_upper =
+      ((blockIdx.y + 1) * blockDim.x >= num_rows)
+      ? (num_rows - blockIdx.y * blockDim.x)
+      : blockDim.x;
   //__shared__ float aggregated_sums_thisblock[(BLOCKDIM + SHMEM_PAD_X) * BLOCKDIM];
   extern __shared__ float aggregated_sums_thisblock[];
 
@@ -201,10 +205,6 @@ __global__ void recursivefilter_step5_inblocksdownright(
       prev_aggregated_sum =
 		  __ldg((const float*)&aggregated_colwise_sums[global_tid_x + (blockIdx.y - 1) * num_cols]);
     }
-    const int y_in_thisblock_upper =
-      ((blockIdx.y + 1) * blockDim.x >= num_rows)
-      ? (num_rows - blockIdx.y * blockDim.x)
-      : blockDim.x;
     for (int y_in_thisblock = 0; y_in_thisblock < y_in_thisblock_upper; ++y_in_thisblock) {
         aggregated_sum =
             feedfwd_coeff *
@@ -245,12 +245,9 @@ __global__ void recursivefilter_step5_inblocksdownright(
   }
 
   if (global_tid_x < num_cols) {
-#pragma unroll
-	  for (int y_in_thisblock = 0; y_in_thisblock < BLOCKDIM; ++y_in_thisblock) {
-      if (blockIdx.y * blockDim.x + y_in_thisblock < num_rows) {
+	  for (int y_in_thisblock = 0; y_in_thisblock < y_in_thisblock_upper; ++y_in_thisblock) {
 		    final_sums[global_tid_x + (blockIdx.y * blockDim.x + y_in_thisblock) * num_cols] = 
           aggregated_sums_thisblock[threadIdx.x + y_in_thisblock * (blockDim.x + SHMEM_PAD_X)];
-      }
 	  }
   }
 }
