@@ -29,17 +29,13 @@ TEST(GPU_funcs_checkmath_smalltables, step1_satcoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt0_rows = (n_rows / config::get_blockdim_2dgrid_y(
-                                          config::BLOCK_SIZE_CLASS::SMALL) +
-                             1),
+  const size_t n_gt0_rows = n_rows / config::kBlockDim2dGridSmall + 1,
                n_gt0_cols = n_cols;
   const int ground_truth_0_data[] = {5, 4, 2, 5, 4, 0, 1, 2, 1, 2};
   CpuTable ground_truth_0(n_gt0_rows, n_gt0_cols, &(*ground_truth_0_data));
 
   const size_t n_gt1_rows = n_rows,
-               n_gt1_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                          config::BLOCK_SIZE_CLASS::SMALL) +
-                             1);
+               n_gt1_cols = n_cols / config::kBlockDim2dGridSmall + 1;
   const int ground_truth_1_data[] = {
       2, 1, 7, 3, 13, 3, 16, 4, 4, 2,
   };
@@ -48,14 +44,8 @@ TEST(GPU_funcs_checkmath_smalltables, step1_satcoeffs) {
   std::vector<CpuTable> step1_outputs;
   step1_outputs.emplace_back(n_gt0_rows, n_gt0_cols);
   step1_outputs.emplace_back(n_gt1_rows, n_gt1_cols);
-  try {
-    const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
-        input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-        config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_1, step1_outputs);
-  } catch (const std::exception &e) {
-    Logger::new_line("Error: " + std::string(e.what()));
-    FAIL();
-  }
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
+    input, kSatFilterCoeffs[0], kSatFilterCoeffs[1], 1, OUTPUT_STEP::STEP_1, step1_outputs);
   Logger::new_line("Step 1 outputs:");
   Logger::new_line(step1_outputs[0].toString());
   Logger::new_line();
@@ -77,18 +67,16 @@ TEST(GPU_funcs_checkmath_smalltables, step2_satcoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt_rows = (n_rows / config::get_blockdim_2dgrid_y(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1),
-               n_gt_cols = n_cols;
+  const size_t n_gt_rows = n_rows / config::kBlockDim2dGridSmall + 1;
+  const size_t n_gt_cols = n_cols;
   const int ground_truth_data[] = {5, 4, 2, 5, 4, 5, 5, 4, 6, 6};
   CpuTable ground_truth(n_gt_rows, n_gt_cols, &(*ground_truth_data));
 
   std::vector<CpuTable> step2_outputs;
   step2_outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_2, step2_outputs);
+      1, OUTPUT_STEP::STEP_2, step2_outputs);
   Logger::new_line("Step 2 output:");
   Logger::new_line(step2_outputs[0].toString());
   Logger::new_line();
@@ -103,20 +91,16 @@ TEST(GPU_funcs_checkmath_smalltables, step3_satcoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt_rows = (n_rows / get_blockdim_2dgrid_y(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1),
-               n_gt_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1);
+  const size_t n_gt_rows = n_rows / config::kBlockDim2dGridSmall + 1,
+               n_gt_cols = n_cols / config::kBlockDim2dGridSmall + 1;
   const int ground_truth_data[] = {16, 4, 20, 6};
   CpuTable ground_truth(n_gt_rows, n_gt_cols, &(*ground_truth_data));
 
   std::vector<CpuTable> step3_outputs;
   step3_outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_3, step3_outputs);
+      1, OUTPUT_STEP::STEP_3, step3_outputs);
   Logger::new_line("Step 3 output:");
   Logger::new_line(step3_outputs[0].toString());
   Logger::new_line();
@@ -132,8 +116,7 @@ TEST(GPU_funcs_checkmath_smalltables, step4_satcoeffs) {
   CpuTable input(n_rows, n_cols, &(*input_data));
 
   const size_t n_gt_rows = 5,
-               n_gt_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
+               n_gt_cols = (n_cols / config::kBlockDim2dGridSmall +
                             1);
   const int ground_truth_data[] = {
       2, 3, 7, 10, 13, 16, 16, 20, 20, 26,
@@ -142,9 +125,9 @@ TEST(GPU_funcs_checkmath_smalltables, step4_satcoeffs) {
 
   std::vector<CpuTable> step4_outputs;
   step4_outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_4, step4_outputs);
+      1, OUTPUT_STEP::STEP_4, step4_outputs);
   Logger::new_line("Step 4 output:");
   Logger::new_line(step4_outputs[0].toString());
   Logger::new_line();
@@ -168,9 +151,9 @@ TEST(GPU_funcs_checkmath_smalltables, step5_satcoeffs) {
 
   std::vector<CpuTable> step5_outputs;
   step5_outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
+      1, OUTPUT_STEP::STEP_5,
       step5_outputs);
   Logger::new_line("Step 5 output:");
   Logger::new_line(step5_outputs[0].toString());
@@ -186,9 +169,7 @@ TEST(GPU_funcs_checkmath_smalltables, step1_arbitrarycoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt0_rows = (n_rows / get_blockdim_2dgrid_y(
-                                          config::BLOCK_SIZE_CLASS::SMALL) +
-                             1),
+  const size_t n_gt0_rows = n_rows / config::kBlockDim2dGridSmall + 1,
                n_gt0_cols = n_cols;
   const float ground_truth_0_data[] = {
       3.971520747928f, 4.118169868f, 1.454411868f, 4.398624879928f,
@@ -197,9 +178,7 @@ TEST(GPU_funcs_checkmath_smalltables, step1_arbitrarycoeffs) {
   CpuTable ground_truth_0(n_gt0_rows, n_gt0_cols, &(*ground_truth_0_data));
 
   const size_t n_gt1_rows = n_rows,
-               n_gt1_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                          config::BLOCK_SIZE_CLASS::SMALL) +
-                             1);
+               n_gt1_cols = n_cols / config::kBlockDim2dGridSmall + 1;
   const float ground_truth_1_data[] = {
       3.45195298555194f, 2.968729f,       8.32589494977925f, 7.558384034f,
       14.3575978912594f, 4.126877682564f, 12.1762270487436f, 5.22200421467995f,
@@ -210,9 +189,9 @@ TEST(GPU_funcs_checkmath_smalltables, step1_arbitrarycoeffs) {
   std::vector<CpuTable> outputs;
   outputs.emplace_back(n_gt0_rows, n_gt0_cols);
   outputs.emplace_back(n_gt1_rows, n_gt1_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_1, outputs);
+      1, OUTPUT_STEP::STEP_1, outputs);
   Logger::new_line("Step 1 outputs:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
@@ -232,9 +211,7 @@ TEST(GPU_funcs_checkmath_smalltables, step2_arbitrarycoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt_rows = (n_rows / get_blockdim_2dgrid_y(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1),
+  const size_t n_gt_rows = n_rows / config::kBlockDim2dGridSmall + 1,
                n_gt_cols = n_cols;
   const float ground_truth_data[] = {
       3.971520747928f,   4.118169868f,      1.454411868f,
@@ -246,9 +223,9 @@ TEST(GPU_funcs_checkmath_smalltables, step2_arbitrarycoeffs) {
 
   std::vector<CpuTable> outputs;
   outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_2, outputs);
+      1, OUTPUT_STEP::STEP_2, outputs);
   Logger::new_line("Step 2 output:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
@@ -263,12 +240,8 @@ TEST(GPU_funcs_checkmath_smalltables, step3_arbitrarycoeffs) {
   };
   CpuTable input(n_rows, n_cols, &(*input_data));
 
-  const size_t n_gt_rows = (n_rows / get_blockdim_2dgrid_y(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1),
-               n_gt_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1);
+  const size_t n_gt_rows = n_rows / config::kBlockDim2dGridSmall + 1,
+               n_gt_cols = n_cols / config::kBlockDim2dGridSmall + 1;
   const float ground_truth_data[] = {
       12.1762270487436f,
       5.22200421467995f,
@@ -279,9 +252,9 @@ TEST(GPU_funcs_checkmath_smalltables, step3_arbitrarycoeffs) {
 
   std::vector<CpuTable> outputs;
   outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_3, outputs);
+      1, OUTPUT_STEP::STEP_3, outputs);
   Logger::new_line("Step 3 output:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
@@ -297,9 +270,7 @@ TEST(GPU_funcs_checkmath_smalltables, step4_arbitrarycoeffs) {
   CpuTable input(n_rows, n_cols, &(*input_data));
 
   const size_t n_gt_rows = 5,
-               n_gt_cols = (n_cols / config::get_blockdim_2dgrid_x(
-                                         config::BLOCK_SIZE_CLASS::SMALL) +
-                            1);
+               n_gt_cols = n_cols / config::kBlockDim2dGridSmall + 1;
   const float ground_truth_data[] = {
       3.45195298555194f, 3.27551493360004f, 8.32589494977925f,
       8.29833254022669f, 14.3575978912594f, 5.40288262578305f,
@@ -310,9 +281,9 @@ TEST(GPU_funcs_checkmath_smalltables, step4_arbitrarycoeffs) {
 
   std::vector<CpuTable> outputs;
   outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_4, outputs);
+      1, OUTPUT_STEP::STEP_4, outputs);
   Logger::new_line("Step 4 output:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
@@ -343,9 +314,9 @@ TEST(GPU_funcs_checkmath_smalltables, step5_arbitrarycoeffs) {
 
   std::vector<CpuTable> outputs;
   outputs.emplace_back(n_gt_rows, n_gt_cols);
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
       input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-      config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5, outputs);
+      1, OUTPUT_STEP::STEP_5, outputs);
   Logger::new_line("Step 5 output:");
   Logger::new_line(outputs[0].toString());
   Logger::new_line();
@@ -360,9 +331,9 @@ TEST(GPU_funcs_checkmath_smalltables, authorstinytable_arbitrarycoeffs) {
                             0, 1, 2, 1, 2, 1, 1, 0, 1, 0, 1, 1};
   CpuTable input(n_rows, n_cols, &(*input_data));
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
+          1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -372,9 +343,9 @@ TEST(GPU_funcs_checkmath_smalltables, oddnumcols_arbitrarycoeffs) {
   CpuTable input(n_rows, n_cols);
   input.setSawTooth(1.89f, 11);
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
+          1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -384,9 +355,9 @@ TEST(GPU_funcs_checkmath_smalltables, oddnumrows_arbitrarycoeffs) {
   CpuTable input(n_rows, n_cols);
   input.setSawTooth(1.89f, 11);
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
+          1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -396,9 +367,9 @@ TEST(GPU_funcs_checkmath_smalltables, oddnumcolsnumrows_arbitrarycoeffs) {
   CpuTable input(n_rows, n_cols);
   input.setSawTooth(1.89f, 11);
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::SMALL, 1, OUTPUT_STEP::STEP_5,
+          1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, true, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -410,9 +381,8 @@ TEST(GPU_funcs_checkmath_largetables, authorsbigtable_arbitrarycoeffs) {
   Logger::new_line("Authors' big table size: (" + std::to_string(n_cols) +
                    ", " + std::to_string(n_rows) + ")");
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5,
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1], 1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -424,9 +394,8 @@ TEST(GPU_funcs_checkmath_largetables, bigtable_arbitrarycoeffs) {
   Logger::new_line("Big table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5,
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1], 1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -437,9 +406,8 @@ TEST(GPU_funcs_checkmath_largetables, hugetable_fullonesfill_satcoeffs) {
   Logger::new_line("Huge table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
-          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5,
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1], 1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -451,9 +419,8 @@ TEST(GPU_funcs_checkmath_largetables, hugetable_arbitraryfill_satcoeffs) {
   Logger::new_line("Huge table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
-          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5,
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1], 1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }
@@ -465,9 +432,8 @@ TEST(GPU_funcs_checkmath_largetables, hugetable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Huge table size: (" + std::to_string(n_cols) + ", " +
                    std::to_string(n_rows) + ")");
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          config::BLOCK_SIZE_CLASS::LARGE, 1, OUTPUT_STEP::STEP_5,
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1], 1, OUTPUT_STEP::STEP_5,
           kMaxAbsError, false, false);
   ASSERT_TRUE(comparison_result.equals);
 }

@@ -1,6 +1,5 @@
 # TODO
 
-* Template so you can unroll the loops
 * Use intrinsic functions for calculations
 * Coeff pows to constant memory
 * Coeff pows by mult-aggreg
@@ -25,6 +24,7 @@
  * One thread block per column: bad occupancy
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
 * Reading input-only global arrays with __ldg(.)
+* Unrolling "for" loops in kernels by templating
 * Implementing specific fast pow(float, int)
 
 # Troubleshooting

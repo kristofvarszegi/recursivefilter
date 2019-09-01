@@ -19,15 +19,15 @@ namespace gpuacademy {
 enum OUTPUT_STEP { STEP_1, STEP_2, STEP_3, STEP_4, STEP_5};
 
 namespace config {
-enum BLOCK_SIZE_CLASS { SMALL, LARGE };
-size_t get_blockdim_2dgrid_x(config::BLOCK_SIZE_CLASS bsc);
-size_t get_blockdim_2dgrid_y(config::BLOCK_SIZE_CLASS bsc);
-size_t get_blockdim_1dgrid_x(config::BLOCK_SIZE_CLASS bsc);
+const int kBlockDim2dGridSmall = 4;
+const int kBlockDim1dGridSmall = 7;
+const int kBlockDim2dGridLarge = 28;
+const int kBlockDim1dGridLarge = 64;  
 } // namespace config
 
-float recursivefilter_downright_gpu(const CpuTable &input, float filter_coeff_0,
-                                    float filter_coeff_1,
-                                    config::BLOCK_SIZE_CLASS block_size_class,
+template <int BLOCKDIM_2DGRID, int BLOCKDIM_1DGRID>
+float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
+                                    float feedback_coeff,
                                     size_t num_kernel_runs,
                                     OUTPUT_STEP output_step,
                                     std::vector<CpuTable> &outputs);

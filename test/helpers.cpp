@@ -7,24 +7,35 @@
 
 namespace gpuacademy {
 
+template comparison_result_t recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridSmall, config::kBlockDim1dGridSmall>(
+    const CpuTable &input, float feedfwd_coeff, float feedback_coeff,
+    int num_kernel_runs,
+    OUTPUT_STEP output_step, float max_abs_error, bool print_tables,
+    bool save_csv);
+template comparison_result_t recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+    const CpuTable &input, float feedfwd_coeff, float feedback_coeff,
+    int num_kernel_runs,
+    OUTPUT_STEP output_step, float max_abs_error, bool print_tables,
+    bool save_csv);
+template <int BLOCKDIM_2DGRID, int BLOCKDIM_1DGRID>
 comparison_result_t recursivefilter_and_compare_gpuvscpu(
-    const CpuTable &input, float filter_coeff_0, float filter_coeff_1,
-    config::BLOCK_SIZE_CLASS block_size_class, int num_kernel_runs,
+    const CpuTable &input, float feedfwd_coeff, float feedback_coeff,
+    int num_kernel_runs,
     OUTPUT_STEP output_step, float max_abs_error, bool print_tables,
     bool save_csv) {
 
   std::vector<CpuTable> summed_area_table_in_vec;
   summed_area_table_in_vec.emplace_back(
       CpuTable(input.num_rows(), input.num_cols()));
-  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu(
-      input, filter_coeff_0, filter_coeff_1, block_size_class, num_kernel_runs,
+  const float runtime_1kernelrun_ms = recursivefilter_downright_gpu<BLOCKDIM_2DGRID, BLOCKDIM_1DGRID>(
+      input, feedfwd_coeff, feedback_coeff, num_kernel_runs,
       output_step, summed_area_table_in_vec);
 
   CpuTable ground_truth(input.num_rows(), input.num_cols());
   Logger::new_line();
   Logger::new_line("Calculating SAT CPU for reference...");
   Logger::new_line();
-  recursivefilter_downright_cpu(input, filter_coeff_0, filter_coeff_1,
+  recursivefilter_downright_cpu(input, feedfwd_coeff, feedback_coeff,
                                 ground_truth);
 
   if (print_tables) {
