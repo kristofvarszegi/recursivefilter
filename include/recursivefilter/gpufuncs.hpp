@@ -24,7 +24,7 @@ const int kBlockDim1dGridSmall = 7;
 const int kBlockDim2dGridLarge = 28;
 const int kBlockDim1dGridLarge = 64;
 const int kNumKernelRunsFew = 1;
-const int kNumKernelRunsMany = 1000;
+const int kNumKernelRunsMany = 2500;
 } // namespace config
 
 template <int BLOCKDIM_2DGRID, int BLOCKDIM_1DGRID, int NUM_KERNEL_RUNS>

@@ -30,7 +30,6 @@ inline void chk_cu_err(cudaError_t code) {
   }
 }
 
-template <int BLOCKDIM>
 __global__ void recursivefilter_step1_inblocksdownright(
     const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
     float feedback_coeff, float* __restrict__ blockwise_colwise_sums,
@@ -83,14 +82,6 @@ __global__ void recursivefilter_step1_inblocksdownright(
     // Transposed to coalesce global memory access
   }
 }
-template __global__ void recursivefilter_step1_inblocksdownright<config::kBlockDim1dGridSmall>(
-    const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
-    float feedback_coeff, float* __restrict__ blockwise_colwise_sums,
-    float* __restrict__ blockwise_rowwise_sums);
-template __global__ void recursivefilter_step1_inblocksdownright<config::kBlockDim1dGridLarge>(
-      const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
-      float feedback_coeff, float* __restrict__ blockwise_colwise_sums,
-      float* __restrict__ blockwise_rowwise_sums);
 
 __global__ void recursivefilter_step2_overblocksdown(
     int num_aggregated_rows, int num_cols, float feedback_coeff_toblockdimypow,
@@ -110,9 +101,9 @@ __global__ void recursivefilter_step2_overblocksdown(
   }
 }
 
-template <int BLOCKDIM>
 __global__ void recursivefilter_step3_inoverblockscolsummedblocksright(
     int num_aggregated_rows, int num_cols, int num_aggregated_cols,
+    int blockdim_2dgrid,
     float feedfwd_coeff, float feedback_coeff,
     const float* __restrict__ aggregated_colwise_sums,
     float* __restrict__ blockwise_rowwise_aggregatedcolsums) {
@@ -122,10 +113,10 @@ __global__ void recursivefilter_step3_inoverblockscolsummedblocksright(
   if (global_tid_x < num_aggregated_cols &&
       global_tid_y < num_aggregated_rows) {
     float aggregated_sum, prev_aggregated_sum = 0.0f;
-    for (int x_in_blockrow = 0; x_in_blockrow < BLOCKDIM;
+    for (int x_in_blockrow = 0; x_in_blockrow < blockdim_2dgrid;
          ++x_in_blockrow) {
       const int global_x_offset =
-          global_tid_x * BLOCKDIM + x_in_blockrow;
+          global_tid_x * blockdim_2dgrid + x_in_blockrow;
       if (global_x_offset < num_cols) {
         aggregated_sum = feedfwd_coeff *
                          __ldg((const float *)&aggregated_colwise_sums
@@ -140,16 +131,6 @@ __global__ void recursivefilter_step3_inoverblockscolsummedblocksright(
     // Transposed to coalesce global memory access
   }
 }
-template __global__ void recursivefilter_step3_inoverblockscolsummedblocksright<config::kBlockDim2dGridSmall>(
-    int num_aggregated_rows, int num_cols, int num_aggregated_cols,
-    float feedfwd_coeff, float feedback_coeff,
-    const float* __restrict__ aggregated_colwise_sums,
-    float* __restrict__ blockwise_rowwise_aggregatedcolsums);
-template __global__ void recursivefilter_step3_inoverblockscolsummedblocksright<config::kBlockDim2dGridLarge>(
-      int num_aggregated_rows, int num_cols, int num_aggregated_cols,
-      float feedfwd_coeff, float feedback_coeff,
-      const float* __restrict__ aggregated_colwise_sums,
-      float* __restrict__ blockwise_rowwise_aggregatedcolsums);
 
 __global__ void recursivefilter_step4_overblocksright(
     int num_rows, int num_aggregated_cols, int num_aggregated_rows,
@@ -183,7 +164,6 @@ __global__ void recursivefilter_step4_overblocksright(
   }
 }
 
-template <int BLOCKDIM>
 __global__ void recursivefilter_step5_inblocksdownright(
     const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
     float feedback_coeff, const float* __restrict__ aggregated_colwise_sums,
@@ -251,14 +231,6 @@ __global__ void recursivefilter_step5_inblocksdownright(
 	  }
   }
 }
-template __global__ void recursivefilter_step5_inblocksdownright<config::kBlockDim2dGridSmall>(
-    const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
-    float feedback_coeff, const float* __restrict__ aggregated_colwise_sums,
-    const float* __restrict__ aggregated_rowwise_sums, float* __restrict__ final_sums);
-template __global__ void recursivefilter_step5_inblocksdownright<config::kBlockDim2dGridLarge>(
-      const float* __restrict__ input, int num_rows, int num_cols, float feedfwd_coeff,
-      float feedback_coeff, const float* __restrict__ aggregated_colwise_sums,
-      const float* __restrict__ aggregated_rowwise_sums, float* __restrict__ final_sums);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -437,18 +409,19 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
   cudaEventRecord(start);
 #pragma unroll
   for (size_t i_run = 0; i_run < NUM_KERNEL_RUNS; ++i_run) {
-    recursivefilter_step1_inblocksdownright<BLOCKDIM_2DGRID><<<griddim_step1, blockdim_step1, shmemsizebytes_step1>>>(
+    recursivefilter_step1_inblocksdownright<<<griddim_step1, blockdim_step1, shmemsizebytes_step1>>>(
         d_input, int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
         feedback_coeff, d_step1_blockwise_colwise_sums, d_step1_blockwise_rowwise_sums);
     recursivefilter_step2_overblocksdown<<<griddim_step2, blockdim_step2>>>(
         int(n_step2_overblocksdown_rows), int(input.num_cols()),
         feedback_coeff_toblockdimypow, d_step1_blockwise_colwise_sums,
         d_step2_aggregated_colwise_sums);
-    recursivefilter_step3_inoverblockscolsummedblocksright<BLOCKDIM_2DGRID><<<griddim_step3,
+    recursivefilter_step3_inoverblockscolsummedblocksright<<<griddim_step3,
                                                              blockdim_step3>>>(
         int(n_step3_inoverblockscolsummedblocksright_rows),
         int(input.num_cols()),
         int(n_step3_inoverblockscolsummedblocksright_cols),
+        BLOCKDIM_2DGRID,
         feedfwd_coeff, feedback_coeff,
         d_step2_aggregated_colwise_sums, d_step3_blockwise_rowwise_aggregatedcolsums);
     recursivefilter_step4_overblocksright<<<griddim_step4, blockdim_step4>>>(
@@ -457,7 +430,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
         int(n_step3_inoverblockscolsummedblocksright_rows), blockdim_step1.x, feedback_coeff,
         feedback_coeff_toblockdimxpow, d_step1_blockwise_rowwise_sums,
         d_step3_blockwise_rowwise_aggregatedcolsums, d_step4_aggregated_rowwise_sums);
-    recursivefilter_step5_inblocksdownright<BLOCKDIM_2DGRID><<<griddim_step5, blockdim_step5,
+    recursivefilter_step5_inblocksdownright<<<griddim_step5, blockdim_step5,
                                               shmemsizebytes_step5>>>(
         d_input, int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
         feedback_coeff, d_step2_aggregated_colwise_sums, d_step4_aggregated_rowwise_sums,
