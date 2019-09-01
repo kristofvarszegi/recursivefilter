@@ -33,9 +33,8 @@ TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxAuthorsBigTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          kNumKernelRunsForMeasuringTime,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxAuthorsBigTableRunTimeMs);
@@ -51,9 +50,8 @@ TEST(GPU_funcs_measuretime, bigtable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxBigTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          kNumKernelRunsForMeasuringTime,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxBigTableRunTimeMs);
@@ -69,9 +67,8 @@ TEST(GPU_funcs_measuretime, hugetable_arbitraryfill_arbitrarycoeffs) {
   Logger::new_line("Expected max. kernel execution time: " + std::to_string(kMaxHugeTableRunTimeMs));
   Logger::new_line();
   const comparison_result_t comparison_result =
-      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge>(
+      recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge, config::kBlockDim1dGridLarge, config::kNumKernelRunsMany>(
           input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
-          kNumKernelRunsForMeasuringTime,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxHugeTableRunTimeMs);
