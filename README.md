@@ -1,9 +1,6 @@
 # TODO
 
 * Use intrinsic functions for calculations
-* Coeff pows to constant memory
-* Coeff pows by mult-aggreg
-* Align global memory accesses to 128byte
 * Pad global memory
 * cudaHostMalloc() for pinned area
 * Texture mem for input
@@ -32,6 +29,7 @@ Given a table of floating point numbers, apply the filter "y_i = feedfwd_coeff *
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
 * Reading input-only global arrays with __ldg(.)
 * Unrolling "for" loops in kernels by templating
+* Aligning thread block dim to 128byte for global memory accesses in 2dgrid kernels: optimum also considering between block limitation and shared memory limitation was not divisor of 128
 * Implementing specific fast pow(float, int)
 
 # Troubleshooting
