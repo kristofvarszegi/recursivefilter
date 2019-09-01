@@ -12,13 +12,16 @@ public:
   CpuTable(size_t num_rows, size_t num_cols, float fill_val);
   CpuTable(size_t num_rows, size_t num_cols, const float *data);
   CpuTable(size_t num_rows, size_t num_cols, const int *data);
+  CpuTable(size_t num_rows, size_t num_cols, size_t alignment_floats, size_t blockdim, const float *data);
   ~CpuTable();
   void set(size_t row_id, size_t col_id, float val);
   void add(size_t row_id, size_t col_id, float val);
   void set(const float *data);
   void set(const int *data);
+  void set(size_t alignment_floats, size_t blockdim, const float *data);
   void reset(size_t num_rows, size_t num_cols);
   void reset(size_t num_rows, size_t num_cols, const float *data);
+  void reset(size_t num_rows, size_t num_cols, size_t alignment_floats, size_t blockdim, const float *data);
   void setSawTooth(float amplitude, int period);
   void transpose();
   size_t num_rows() const;

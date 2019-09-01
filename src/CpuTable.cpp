@@ -64,24 +64,38 @@ CpuTable::CpuTable(size_t num_rows, size_t num_cols, const int *data) {
   set(data);
 }
 
+CpuTable::CpuTable(size_t num_rows, size_t num_cols, size_t alignment_floats, size_t blockdim, const float *data) {
+  if (num_rows < 2) {
+    throw std::runtime_error("Number of table rows must be at least 2");
+  }
+  if (num_cols < 2) {
+    throw std::runtime_error("Number of table cols must be at least 2");
+  }
+  if (data == NULL) {
+    throw std::runtime_error("data must not be NULL");
+  }
+  resetData(num_rows, num_cols);
+  set(alignment_floats, blockdim, data);
+}
+
 CpuTable::~CpuTable() {}
 
 void CpuTable::set(size_t row_id, size_t col_id, float val) {
   if (row_id >= data_.size()) {
-    throw std::runtime_error("Row ID must be less than the number of rows");
+    throw std::runtime_error("CpuTable::set(.): Row ID must be less than the number of rows (" + std::to_string(row_id) + " >= " + std::to_string(num_rows()) + ")");
   }
   if (col_id >= data_[0].size()) {
-    throw std::runtime_error("Col ID must be less than the number of cols");
+    throw std::runtime_error("CpuTable::set(.): Col ID must be less than the number of cols (" + std::to_string(col_id) + " >= " + std::to_string(num_cols()) + ")");
   }
   data_[row_id][col_id] = val;
 }
 
 void CpuTable::add(size_t row_id, size_t col_id, float val) {
   if (row_id >= data_.size()) {
-    throw std::runtime_error("Row ID must be less than the number of rows");
+    throw std::runtime_error("CpuTable::add(.): Row ID must be less than the number of rows (" + std::to_string(row_id) + " >= " + std::to_string(num_rows()) + ")");
   }
   if (col_id >= data_[0].size()) {
-    throw std::runtime_error("Col ID must be less than the number of cols");
+    throw std::runtime_error("CpuTable::add(.): Col ID must be less than the number of cols (" + std::to_string(col_id) + " >= " + std::to_string(num_cols()) + ")");
   }
   data_[row_id][col_id] += val;
 }
@@ -99,6 +113,18 @@ void CpuTable::set(const int *data) {
     for (int i_col = 0; i_col < num_cols(); ++i_col) {
       set(i_row, i_col,
           static_cast<float>(data[i_col + i_row * data_[0].size()]));
+    }
+  }
+}
+
+void CpuTable::set(size_t alignment_floats, size_t blockdim, const float *data) {
+  const size_t num_cols_glmemaligned = align_size_logic2glmem(this->num_cols(), alignment_floats, blockdim);
+  for (size_t i_row = 0; i_row < this->num_rows(); ++i_row) {
+    for (size_t i_col = 0; i_col < num_cols_glmemaligned; ++i_col) {
+      const size_t i_col_unaligned = align_index_glmem2logic(i_col, alignment_floats, blockdim);
+      if (i_col % alignment_floats < blockdim && i_col_unaligned < num_cols()) {
+        set(i_row, i_col_unaligned, data[i_col + i_row * num_cols_glmemaligned]);
+      }
     }
   }
 }
@@ -122,6 +148,17 @@ void CpuTable::reset(size_t num_rows, size_t num_cols, const float *data) {
   }
   resetData(num_rows, num_cols);
   set(data);
+}
+
+void CpuTable::reset(size_t num_rows, size_t num_cols, size_t alignment_floats, size_t blockdim, const float *data) {
+  if (num_rows < 2) {
+    throw std::runtime_error("Number of table rows must be at least 2");
+  }
+  if (num_cols < 2) {
+    throw std::runtime_error("Number of table cols must be at least 2");
+  }
+  resetData(num_rows, num_cols);
+  set(alignment_floats, blockdim, data);
 }
 
 void CpuTable::resetData(size_t num_rows, size_t num_cols) {
@@ -172,10 +209,10 @@ std::vector<std::vector<float>> CpuTable::data() const { return data_; }
 
 float CpuTable::get(size_t row_id, size_t col_id) const {
   if (row_id >= data_.size()) {
-    throw std::runtime_error("Row ID must be less than the number of rows");
+    throw std::runtime_error("CpuTable::get(.): Row ID must be less than the number of rows (" + std::to_string(row_id) + " >= " + std::to_string(num_rows()) + ")");
   }
   if (col_id >= data_[0].size()) {
-    throw std::runtime_error("Col ID must be less than the number of cols");
+    throw std::runtime_error("CpuTable::get(.): Col ID must be less than the number of cols (" + std::to_string(col_id) + " >= " + std::to_string(num_cols()) + ")");
   }
   return data_[row_id][col_id];
 }
