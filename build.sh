@@ -13,11 +13,11 @@ echo "Deps path: ${DEPS_PATH}"
 echo "Generating \"${GENERATE_PROJECT_TYPE}\""
 echo "Build path: ${BUILD_PATH}"
 
-export MAKEFLAGS=-j6
+export MAKEFLAGS=-j8
 cmake -H. -B${BUILD_PATH} \
     -G"${GENERATE_PROJECT_TYPE}" \
     -DCMAKE_PREFIX_PATH="${DEPS_PATH}" \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=${BUILD_PATH}
 LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${BUILD_PATH}
 cmake --build ${BUILD_PATH} --target install
