@@ -1,11 +1,11 @@
 # TODO
 
-* Merge transpose into step5
-* Use intrinsic functions for calculations
 * Template so you can unroll the loops
-* Pad global memory
+* Use intrinsic functions for calculations
 * Coeff pows to constant memory
 * Coeff pows by mult-aggreg
+* Align global memory accesses to 128byte
+* Pad global memory
 * cudaHostMalloc() for pinned area
 * Texture mem for input
 * Switch to half precision
@@ -17,6 +17,7 @@
 * Coalescing global memory accesses
 * const __restrict__ on global arrays
 * Fill final sum table as col-major and transpose afterwards with cuBLAS
+* Fill final sum table with tiled transpose within step5
 
 # Tried but didn't help
 
