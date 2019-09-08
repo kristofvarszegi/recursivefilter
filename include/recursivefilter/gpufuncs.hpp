@@ -21,7 +21,7 @@ enum OUTPUT_STEP { STEP_1, STEP_2, STEP_3, STEP_4, STEP_5 };
 namespace config {
 const int kBlockDim2dGridSmall = 4;
 const int kBlockDim1dGridSmall = 7;
-const int kBlockDim2dGridLarge = 28;
+const int kBlockDim2dGridLarge = 32;
 const int kBlockDim1dGridLarge = 64;
 const int kNumKernelRunsFew = 1;
 const int kNumKernelRunsMany = 2500;

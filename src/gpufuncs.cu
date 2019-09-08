@@ -255,6 +255,10 @@ __global__ void recursivefilter_step5_inblocksdownright(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//
+//  recursivefilter_downright_gpu(.)
+//
+////////////////////////////////////////////////////////////////////////////////
 
 template <int BLOCKDIM_2DGRID, int BLOCKDIM_1DGRID, int NUM_KERNEL_RUNS>
 float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
@@ -485,7 +489,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
   // cudaDeviceSynchronize();
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&run_time_allruns_ms, start, stop);
+  cudaEventElapsedTime(&run_time_allruns_ms, start, stop);  // Yes in milliseconds
   const float run_time_1run_ms = run_time_allruns_ms / float(NUM_KERNEL_RUNS);
   Logger::new_line(
       "\nKernel execution time for " + std::to_string(input.num_cols()) + "x" +
