@@ -35,6 +35,7 @@ Replace arbitrary.png with your image and run.
  * One thread block per column: led to low occupancy
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
  * Using warp shuffle functions: the shared memory writes after the scan offset the pros because of bank conflicts
+* Increasing occupancy for steps 1 and 5: limited by shared memory
 * Reading input-only global arrays with __ldg(.)
 * Unrolling "for" loops in kernels by templating
 * Aligning thread block dim to 128byte for global memory accesses in 2dgrid kernels: optimum also considering between block limitation and shared memory limitation was not divisor of 128
