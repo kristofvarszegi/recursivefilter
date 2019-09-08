@@ -43,6 +43,8 @@ Replace arbitrary.png with your image and run.
 * Using texture memory for input: global memory accesses are already optimized for cache (same for using surface objects)
 * Implementing specific fast pow(float, int)
 
+(See repository branches for some of the abandoned ways.)
+
 # Further runtime optimization possibilities
 
 * Use half precision number format - depends on the requirements of the domain of usage
