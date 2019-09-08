@@ -1,8 +1,8 @@
 # TODO
 
-* Use intrinsic functions for calculations
 * Texture mem for input
 * Surface mem for output
+* Turn on sync
 
 # Mathematical specification
 
@@ -29,19 +29,21 @@ To run: ./run.sh
 # Tried but didn't help
 
 * Doing steps 2, 3, 4 with parallel-scan
- * One thread block per column: bad occupancy
+ * One thread block per column: led to low occupancy
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
  * Using warp shuffle functions: the shared memory writes after the scan offset the pros because of bank conflicts
 * Reading input-only global arrays with __ldg(.)
 * Unrolling "for" loops in kernels by templating
 * Aligning thread block dim to 128byte for global memory accesses in 2dgrid kernels: optimum also considering between block limitation and shared memory limitation was not divisor of 128
 * Aligning tables to 128bytes for global memory accesses
+* Using single precision intrinsics for calculations: better to leave it to the compiler
 * Implementing specific fast pow(float, int)
 
 # Further runtime optimization possibilities
 
 * Use half precision number format - depends on the requirements of the domain of usage
 * Don't calculate the unused last row/col of the aggregated tables
+* Find parallelizable kernel sections, and parallelize them using streams
 
 # Troubleshooting
 

@@ -30,8 +30,10 @@ inline void chk_cu_err(cudaError_t code) {
   }
 }
 
+texture<float, cudaTextureType2D, cudaReadModeElementType> input_texture;
+
 __global__ void recursivefilter_step1_inblocksdownright(
-    const float *__restrict__ input, int num_rows, int num_cols,
+    int num_rows, int num_cols,
     float feedfwd_coeff, float feedback_coeff,
     float *__restrict__ blockwise_colwise_sums,
     float *__restrict__ blockwise_rowwise_sums) {
@@ -47,12 +49,7 @@ __global__ void recursivefilter_step1_inblocksdownright(
     for (int y_in_thisblock = 0; y_in_thisblock < blockDim.x;
          ++y_in_thisblock) {
       if (blockIdx.y * blockDim.x + y_in_thisblock < num_rows) {
-        aggregated_sum =
-            feedfwd_coeff *
-            __ldg(
-                (const float *)&input[global_tid_x + (blockIdx.y * blockDim.x +
-                                                      y_in_thisblock) *
-                                                         num_cols]);
+        aggregated_sum = feedfwd_coeff * tex2D(input_texture, global_tid_x, (blockIdx.y * blockDim.x + y_in_thisblock));
         aggregated_sum += feedback_coeff * prev_aggregated_sum;
       }
       colwisesums_thisblock[threadIdx.x +
@@ -175,7 +172,7 @@ __global__ void recursivefilter_step4_overblocksright(
 }
 
 __global__ void recursivefilter_step5_inblocksdownright(
-    const float *__restrict__ input, int num_rows, int num_cols,
+    int num_rows, int num_cols,
     float feedfwd_coeff, float feedback_coeff,
     const float *__restrict__ aggregated_colwise_sums,
     const float *__restrict__ aggregated_rowwise_sums,
@@ -201,12 +198,7 @@ __global__ void recursivefilter_step5_inblocksdownright(
     for (int y_in_thisblock = 0; y_in_thisblock < y_in_thisblock_upper;
          ++y_in_thisblock) {
       aggregated_sum =
-          feedfwd_coeff *
-              __ldg((
-                  const float *)&input[global_tid_x + (blockIdx.y * blockDim.x +
-                                                       y_in_thisblock) *
-                                                          num_cols]) +
-          feedback_coeff * prev_aggregated_sum;
+          feedfwd_coeff * tex2D(input_texture, global_tid_x, (blockIdx.y * blockDim.x + y_in_thisblock)) + feedback_coeff * prev_aggregated_sum;
       prev_aggregated_sum = aggregated_sum;
       aggregated_sums_thisblock[threadIdx.x +
                                 y_in_thisblock * (blockDim.x + SHMEM_PAD_X)] =
@@ -297,13 +289,15 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
       h_input[i_col + i_row * input.num_cols()] = input.get(i_row, i_col);
     }
   }
-  // texture<float, 2, cudaReadModeElementType> input_texture;
-  float *d_input;
-  chk_cu_err(cudaMalloc((void **)(&d_input),
-                        input.num_rows() * input.num_cols() * sizeof(float)));
-  chk_cu_err(cudaMemcpy(d_input, h_input,
-                        input.num_rows() * input.num_cols() * sizeof(float),
-                        cudaMemcpyHostToDevice));
+  cudaChannelFormatDesc channel_description = cudaCreateChannelDesc(sizeof(float) * 8, 0, 0, 0, cudaChannelFormatKindFloat);
+  cudaArray* d_input_array;
+  chk_cu_err(cudaMallocArray(&d_input_array, &channel_description, input.num_cols(), input.num_rows()));
+  chk_cu_err(cudaMemcpy2DToArray(d_input_array, 0, 0, h_input, input.num_cols() * sizeof(float), input.num_cols() * sizeof(float), input.num_rows(), cudaMemcpyHostToDevice));
+  input_texture.addressMode[0] = cudaAddressModeBorder;
+  input_texture.addressMode[1] = cudaAddressModeBorder;
+  input_texture.filterMode = cudaFilterModePoint;
+  input_texture.normalized = false;
+  chk_cu_err(cudaBindTextureToArray(input_texture, d_input_array, channel_description));
 
   const dim3 blockdim_step1(BLOCKDIM_2DGRID, 1,
                             1); // Passing BLOCKDIM_2DGRID directly to kernel
@@ -458,7 +452,7 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
   for (size_t i_run = 0; i_run < NUM_KERNEL_RUNS; ++i_run) {
     recursivefilter_step1_inblocksdownright<<<griddim_step1, blockdim_step1,
                                               shmemsizebytes_step1>>>(
-        d_input, int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
+        int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
         feedback_coeff, d_step1_blockwise_colwise_sums,
         d_step1_blockwise_rowwise_sums);
     recursivefilter_step2_overblocksdown<<<griddim_step2, blockdim_step2>>>(
@@ -482,14 +476,15 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
         d_step4_aggregated_rowwise_sums);
     recursivefilter_step5_inblocksdownright<<<griddim_step5, blockdim_step5,
                                               shmemsizebytes_step5>>>(
-        d_input, int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
+        int(input.num_rows()), int(input.num_cols()), feedfwd_coeff,
         feedback_coeff, d_step2_aggregated_colwise_sums,
         d_step4_aggregated_rowwise_sums, d_step5_finalsums_rowmajor);
   }
   // cudaDeviceSynchronize();
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&run_time_allruns_ms, start, stop);  // Yes in milliseconds
+  cudaEventElapsedTime(&run_time_allruns_ms, start,
+                       stop); // Yes in milliseconds
   const float run_time_1run_ms = run_time_allruns_ms / float(NUM_KERNEL_RUNS);
   Logger::new_line(
       "\nKernel execution time for " + std::to_string(input.num_cols()) + "x" +
@@ -633,8 +628,8 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
     throw std::runtime_error("Invalid output step requested: " +
                              std::to_string(output_step));
   }
-
-  chk_cu_err(cudaFree(d_input));
+  chk_cu_err(cudaUnbindTexture(input_texture));
+  chk_cu_err(cudaFreeArray(d_input_array));
   free(h_input);
   chk_cu_err(cudaFree(d_step1_blockwise_colwise_sums));
   free(h_blockwise_colwise_sums);
@@ -648,7 +643,6 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
   free(h_step4_overblocksright);
   chk_cu_err(cudaFree(d_step5_finalsums_rowmajor));
   free(h_step5_finalsums_rowmajor);
-
   return run_time_1run_ms;
 }
 template float recursivefilter_downright_gpu<

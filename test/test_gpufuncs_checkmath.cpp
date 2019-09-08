@@ -44,8 +44,7 @@ TEST(GPU_funcs_checkmath_smalltables, step1_satcoeffs) {
   std::vector<CpuTable> step1_outputs;
   step1_outputs.emplace_back(n_gt0_rows, n_gt0_cols);
   step1_outputs.emplace_back(n_gt1_rows, n_gt1_cols);
-  const float runtime_1kernelrun_ms =
-      recursivefilter_downright_gpu<config::kBlockDim2dGridSmall,
+  recursivefilter_downright_gpu<config::kBlockDim2dGridSmall,
                                     config::kBlockDim1dGridSmall,
                                     config::kNumKernelRunsFew>(
           input, kSatFilterCoeffs[0], kSatFilterCoeffs[1], OUTPUT_STEP::STEP_1,

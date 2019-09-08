@@ -36,11 +36,12 @@ TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_satcoeffs) {
       recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
                                            config::kBlockDim1dGridLarge,
                                            config::kNumKernelRunsMany>(
-          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
+          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1], OUTPUT_STEP::STEP_5,
+          kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
 
-  std::cout << "MY_RUNTIME_MS " << comparison_result.runtime_1kernel_ms << std::endl;
+  std::cout << "MY_RUNTIME_MS " << comparison_result.runtime_1kernel_ms
+            << std::endl;
 
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxAuthorsBigTableRunTimeMs);
 }
