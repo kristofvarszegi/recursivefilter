@@ -3,10 +3,11 @@
 printf "\n\nRunning my implementation...\n"
 MY_RUNTIME_MS=-1.0
 if [ "$(uname)" == "Linux" ]; then
-    A=1
     ../recursivefilter-build/test_recursivefilter_checkmath
-    #../recursivefilter-build/test_recursivefilter_measuretime
-    MY_RUNTIME_MS=$(../recursivefilter-build/test_recursivefilter_measuretime | grep "MY_RUNTIME_MS " | sed 's/MY_RUNTIME_MS //g')
+    MY_RUNTIME_OUTPUT="$(../recursivefilter-build/test_recursivefilter_measuretime)"
+    echo "$MY_RUNTIME_OUTPUT"
+    MY_RUNTIME_MS=$(echo "$MY_RUNTIME_OUTPUT" | grep "MY_RUNTIME_MS " | sed 's/MY_RUNTIME_MS //g')
+    ../recursivefilter-build/test_recursivefilter_filterimages
 else
     ./bin/test_recursivefilter
 fi

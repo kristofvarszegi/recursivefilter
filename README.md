@@ -1,22 +1,25 @@
-# TODO
-
-* Use intrinsic functions for calculations
-* Texture mem for input
-* Surface mem for output
-
 # Mathematical specification
 
 Given a table of floating point numbers, apply the filter "y_i = feedfwd_coeff * x_i + feedback_coeff * y_i-1" along columns then along rows. Support arbitrary table sizes.
 
-# How to build and run
+# How to build
 
-To build: ./build.sh
-To run: ./run.sh
+./build.sh
+
+# How to run
+
+./run.sh
+
+# How run on arbitrary image
+
+Replace arbitrary.png with your image and run.
 
 # Platform requirements
 
 * Ubuntu 18.04
 * CUDA 10.1
+* GTest
+* OpenCV
 
 # Tried and helped
 
@@ -29,19 +32,22 @@ To run: ./run.sh
 # Tried but didn't help
 
 * Doing steps 2, 3, 4 with parallel-scan
- * One thread block per column: bad occupancy
+ * One thread block per column: led to low occupancy
  * One thread block for N columns: inherent shared memory bank conflicts between the scan strips
  * Using warp shuffle functions: the shared memory writes after the scan offset the pros because of bank conflicts
 * Reading input-only global arrays with __ldg(.)
 * Unrolling "for" loops in kernels by templating
 * Aligning thread block dim to 128byte for global memory accesses in 2dgrid kernels: optimum also considering between block limitation and shared memory limitation was not divisor of 128
 * Aligning tables to 128bytes for global memory accesses
+* Using single precision intrinsics for calculations: better to leave it to the compiler
+* Using texture memory for input: global memory accesses are already optimized for cache (same for using surface objects)
 * Implementing specific fast pow(float, int)
 
 # Further runtime optimization possibilities
 
 * Use half precision number format - depends on the requirements of the domain of usage
 * Don't calculate the unused last row/col of the aggregated tables
+* Find parallelizable kernel sections, and parallelize them using streams
 
 # Troubleshooting
 

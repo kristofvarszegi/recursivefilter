@@ -16,8 +16,8 @@ const float kMaxAbsError = 0.005f;
 const float kMaxAuthorsBigTableRunTimeMs = 0.165f;
 const float kMaxBigTableRunTimeMs = 0.300f;
 const float kMaxHugeTableRunTimeMs = 1.195f;
-const float kSatFilterCoeffs[] = {1.0f, 1.0f};
-const float kArbitratyFilterCoeffs[] = {1.723f, 0.546f};
+const float kSatFeedFwdCoeff = 1.0f, kSatFeedBackCoeff = 1.0f;
+const float kArbitratyFeedFwdCoeff = 1.723f, kArbitratyFeedBackCoeff = 0.546f;
 const int kAuthorsBigTableSizeX = 1024, kAuthorsBigTableSizeY = 1024;
 const int kBigTableSizeX = 2007, kBigTableSizeY = 1003;
 const int kHugeTableSizeX = 4007, kHugeTableSizeY = 2003;
@@ -36,11 +36,12 @@ TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_satcoeffs) {
       recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
                                            config::kBlockDim1dGridLarge,
                                            config::kNumKernelRunsMany>(
-          input, kSatFilterCoeffs[0], kSatFilterCoeffs[1],
-          OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
+          input, kSatFeedFwdCoeff, kSatFeedBackCoeff, OUTPUT_STEP::STEP_5,
+          kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
 
-  std::cout << "MY_RUNTIME_MS " << comparison_result.runtime_1kernel_ms << std::endl;
+  std::cout << "MY_RUNTIME_MS " << comparison_result.runtime_1kernel_ms
+            << std::endl;
 
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxAuthorsBigTableRunTimeMs);
 }
@@ -59,7 +60,7 @@ TEST(GPU_funcs_measuretime, authorsbigtable_arbitraryfill_arbitrarycoeffs) {
       recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
                                            config::kBlockDim1dGridLarge,
                                            config::kNumKernelRunsMany>(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
+          input, kArbitratyFeedFwdCoeff, kArbitratyFeedBackCoeff,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxAuthorsBigTableRunTimeMs);
@@ -79,7 +80,7 @@ TEST(GPU_funcs_measuretime, bigtable_arbitraryfill_arbitrarycoeffs) {
       recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
                                            config::kBlockDim1dGridLarge,
                                            config::kNumKernelRunsMany>(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
+          input, kArbitratyFeedFwdCoeff, kArbitratyFeedBackCoeff,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxBigTableRunTimeMs);
@@ -99,7 +100,7 @@ TEST(GPU_funcs_measuretime, hugetable_arbitraryfill_arbitrarycoeffs) {
       recursivefilter_and_compare_gpuvscpu<config::kBlockDim2dGridLarge,
                                            config::kBlockDim1dGridLarge,
                                            config::kNumKernelRunsMany>(
-          input, kArbitratyFilterCoeffs[0], kArbitratyFilterCoeffs[1],
+          input, kArbitratyFeedFwdCoeff, kArbitratyFeedBackCoeff,
           OUTPUT_STEP::STEP_5, kMaxAbsError, false, false);
   EXPECT_TRUE(comparison_result.equals);
   ASSERT_LT(comparison_result.runtime_1kernel_ms, kMaxHugeTableRunTimeMs);

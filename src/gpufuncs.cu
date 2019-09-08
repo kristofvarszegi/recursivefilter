@@ -486,10 +486,11 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
         feedback_coeff, d_step2_aggregated_colwise_sums,
         d_step4_aggregated_rowwise_sums, d_step5_finalsums_rowmajor);
   }
-  // cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&run_time_allruns_ms, start, stop);  // Yes in milliseconds
+  cudaEventElapsedTime(&run_time_allruns_ms, start,
+                       stop); // Yes in milliseconds
   const float run_time_1run_ms = run_time_allruns_ms / float(NUM_KERNEL_RUNS);
   Logger::new_line(
       "\nKernel execution time for " + std::to_string(input.num_cols()) + "x" +

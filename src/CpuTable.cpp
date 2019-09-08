@@ -12,21 +12,21 @@
 namespace gpuacademy {
 
 CpuTable::CpuTable(size_t num_rows, size_t num_cols) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   resetData(num_rows, num_cols);
 }
 
 CpuTable::CpuTable(size_t num_rows, size_t num_cols, float fill_val) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   resetData(num_rows, num_cols);
   for (int i_row = 0; i_row < num_rows; ++i_row) {
@@ -37,11 +37,11 @@ CpuTable::CpuTable(size_t num_rows, size_t num_cols, float fill_val) {
 }
 
 CpuTable::CpuTable(size_t num_rows, size_t num_cols, const float *data) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   if (data == NULL) {
     throw std::runtime_error("data must not be NULL");
@@ -51,11 +51,11 @@ CpuTable::CpuTable(size_t num_rows, size_t num_cols, const float *data) {
 }
 
 CpuTable::CpuTable(size_t num_rows, size_t num_cols, const int *data) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   if (data == NULL) {
     throw std::runtime_error("data must not be NULL");
@@ -104,32 +104,32 @@ void CpuTable::set(const int *data) {
 }
 
 void CpuTable::reset(size_t num_rows, size_t num_cols) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   resetData(num_rows, num_cols);
 }
 
 void CpuTable::reset(size_t num_rows, size_t num_cols, const float *data) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   resetData(num_rows, num_cols);
   set(data);
 }
 
 void CpuTable::resetData(size_t num_rows, size_t num_cols) {
-  if (num_rows < 2) {
-    throw std::runtime_error("Number of table rows must be at least 2");
+  if (num_rows < 1) {
+    throw std::runtime_error("Number of table rows must be at least 1");
   }
-  if (num_cols < 2) {
-    throw std::runtime_error("Number of table cols must be at least 2");
+  if (num_cols < 1) {
+    throw std::runtime_error("Number of table cols must be at least 1");
   }
   data_ = std::vector<std::vector<float>>();
   for (int i_row = 0; i_row < num_rows; ++i_row) {

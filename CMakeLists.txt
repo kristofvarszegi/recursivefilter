@@ -59,6 +59,7 @@ enable_testing()
 
 find_package(GTest REQUIRED)
 message("GTest_DIR: \"${GTest_DIR}\"")
+link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Math check tests
 set(TEST_NAME "test_${LIB_NAME}_checkmath")
@@ -70,7 +71,6 @@ add_executable(${TEST_NAME}
     test/test_CpuTable.cpp
     test/test_gpufuncs_checkmath.cpp
 )
-link_directories(${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${TEST_NAME} ${LIB_NAME})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES} pthread)
@@ -88,7 +88,6 @@ add_executable(${TEST_NAME}
     test/helpers.hpp test/helpers.cpp
     test/test_gpufuncs_measuretime.cpp
 )
-link_directories(${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(${TEST_NAME} ${LIB_NAME})
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES} pthread)
@@ -97,3 +96,26 @@ else()
 endif ()
 add_test(${TEST_NAME} COMMAND ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME})
 install(TARGETS EXPORT ${TEST_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
+
+# Image filtering tests
+#set(TEST_RESOURCES_PATH "${CMAKE_SOURCE_DIR}/res")
+#configure_file(test/test_gpufuncs_filterimages.cpp.in ${CMAKE_BINARY_DIR}/test/test_gpufuncs_filterimages.cpp)
+#include_directories(${CMAKE_BINARY_DIR}/test/)
+find_package(OpenCV REQUIRED)
+set(TEST_NAME "test_${LIB_NAME}_filterimages")
+add_executable(${TEST_NAME}
+    ${HEADERS}
+    test/main.cpp
+    test/helpers.hpp test/helpers.cpp
+    test/test_gpufuncs_filterimages.cpp
+)
+target_link_libraries(${TEST_NAME} ${LIB_NAME} ${OpenCV_LIBS})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(${TEST_NAME} ${GTEST_LIBRARIES} pthread)
+else()
+    target_link_libraries(${TEST_NAME} "GTest::Main")
+endif ()
+add_test(${TEST_NAME} COMMAND ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${TEST_NAME})
+install(TARGETS EXPORT ${TEST_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
+install(FILES res/all0x010101.png res/arbitrary.png DESTINATION ${CMAKE_INSTALL_PREFIX})
+install(FILES res/all0x010101.png res/arbitrary.png DESTINATION ${CMAKE_SOURCE_DIR})
