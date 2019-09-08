@@ -47,13 +47,13 @@ __global__ void recursivefilter_step1_inblocksdownright(
     for (int y_in_thisblock = 0; y_in_thisblock < blockDim.x;
          ++y_in_thisblock) {
       if (blockIdx.y * blockDim.x + y_in_thisblock < num_rows) {
-        aggregated_sum =
-            feedfwd_coeff *
-            __ldg(
-                (const float *)&input[global_tid_x + (blockIdx.y * blockDim.x +
-                                                      y_in_thisblock) *
-                                                         num_cols]);
-        aggregated_sum += feedback_coeff * prev_aggregated_sum;
+        aggregated_sum = __fadd_rn(
+            __fmul_rn(feedfwd_coeff,
+                      __ldg((const float *)&input[global_tid_x +
+                                                  (blockIdx.y * blockDim.x +
+                                                   y_in_thisblock) *
+                                                      num_cols])),
+            __fmul_rn(feedback_coeff, prev_aggregated_sum));
       }
       colwisesums_thisblock[threadIdx.x +
                             y_in_thisblock * (blockDim.x + SHMEM_PAD_X)] =
@@ -70,11 +70,12 @@ __global__ void recursivefilter_step1_inblocksdownright(
     for (int x_in_thisblock = 0; x_in_thisblock < blockDim.x;
          ++x_in_thisblock) {
       if (blockIdx.x * blockDim.x + x_in_thisblock < num_cols) {
-        aggregated_sum =
-            feedfwd_coeff *
-            colwisesums_thisblock[x_in_thisblock +
-                                  threadIdx.x * (blockDim.x + SHMEM_PAD_X)];
-        aggregated_sum += feedback_coeff * prev_aggregated_sum;
+        aggregated_sum = __fadd_rn(
+            __fmul_rn(feedfwd_coeff,
+                      colwisesums_thisblock[x_in_thisblock +
+                                            threadIdx.x *
+                                                (blockDim.x + SHMEM_PAD_X)]),
+            __fmul_rn(feedback_coeff, prev_aggregated_sum));
       }
       prev_aggregated_sum = aggregated_sum;
     }
@@ -94,10 +95,10 @@ __global__ void recursivefilter_step2_overblocksdown(
     for (int y_in_grid = 0; y_in_grid < num_aggregated_rows;
          ++y_in_grid) { // Could be unrolled if targeting certain specific table
                         // sizes
-      aggregated_sum =
+      aggregated_sum = __fadd_rn(
           __ldg((const float *)&blockwise_colwise_sums[global_tid +
-                                                       y_in_grid * num_cols]) +
-          feedback_coeff_toblockdimypow * prev_aggregated_sum;
+                                                       y_in_grid * num_cols]),
+          __fmul_rn(feedback_coeff_toblockdimypow, prev_aggregated_sum));
       prev_aggregated_sum = aggregated_sum;
       aggregated_colwise_sums[global_tid + y_in_grid * num_cols] =
           aggregated_sum;
@@ -121,10 +122,11 @@ __global__ void recursivefilter_step3_inoverblockscolsummedblocksright(
       const int global_x_offset =
           global_tid_x * blockdim_2dgrid + x_in_blockrow;
       if (global_x_offset < num_cols) {
-        aggregated_sum = feedfwd_coeff *
-                         __ldg((const float *)&aggregated_colwise_sums
-                                   [global_x_offset + global_tid_y * num_cols]);
-        aggregated_sum += feedback_coeff * prev_aggregated_sum;
+        aggregated_sum = __fadd_rn(
+            __fmul_rn(feedfwd_coeff,
+                      __ldg((const float *)&aggregated_colwise_sums
+                                [global_x_offset + global_tid_y * num_cols])),
+            __fmul_rn(feedback_coeff, prev_aggregated_sum));
       }
       prev_aggregated_sum = aggregated_sum;
     }
@@ -148,22 +150,21 @@ __global__ void recursivefilter_step4_overblocksright(
     float aggregated_sum, prev_aggregated_sum = 0.0f;
     const int bwrwaggcs_row_id = global_tid_y / num_rows_in2dblock;
     float feedback_coeff_pow =
-        powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1);
+        __powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1);
     for (int x_in_row = 0; x_in_row < num_aggregated_cols;
          ++x_in_row) { // Could be unrolled if targeting certain specific table
                        // sizes
-      aggregated_sum =
+      aggregated_sum = __fadd_rn(
           __ldg((const float *)&blockwise_rowwise_sums[global_tid_y +
-                                                       x_in_row * num_rows]) +
-          feedback_coeff_toblockdimxpow * prev_aggregated_sum;
+                                                       x_in_row * num_rows]),
+          __fmul_rn(feedback_coeff_toblockdimxpow, prev_aggregated_sum));
       // Transposed to coalesce global memory access
       if (bwrwaggcs_row_id > 0) {
-        aggregated_sum +=
-            feedback_coeff_pow *
-            // powf(feedback_coeff, (global_tid_y % num_rows_in2dblock) + 1) *
+        aggregated_sum += __fmul_rn(
+            feedback_coeff_pow,
             __ldg(
                 (const float *)&blockwise_rowwise_aggregatedcolsums
-                    [(bwrwaggcs_row_id - 1) + x_in_row * num_aggregated_rows]);
+                    [(bwrwaggcs_row_id - 1) + x_in_row * num_aggregated_rows]));
         // Transposed to coalesce global memory access
       }
       prev_aggregated_sum = aggregated_sum;
@@ -200,13 +201,14 @@ __global__ void recursivefilter_step5_inblocksdownright(
     }
     for (int y_in_thisblock = 0; y_in_thisblock < y_in_thisblock_upper;
          ++y_in_thisblock) {
-      aggregated_sum =
-          feedfwd_coeff *
+      aggregated_sum = __fadd_rn(
+          __fmul_rn(
+              feedfwd_coeff,
               __ldg((
                   const float *)&input[global_tid_x + (blockIdx.y * blockDim.x +
                                                        y_in_thisblock) *
-                                                          num_cols]) +
-          feedback_coeff * prev_aggregated_sum;
+                                                          num_cols])),
+          __fmul_rn(feedback_coeff, prev_aggregated_sum));
       prev_aggregated_sum = aggregated_sum;
       aggregated_sums_thisblock[threadIdx.x +
                                 y_in_thisblock * (blockDim.x + SHMEM_PAD_X)] =
@@ -228,12 +230,13 @@ __global__ void recursivefilter_step5_inblocksdownright(
                                          : blockDim.x;
     for (int x_in_thisblock = 0; x_in_thisblock < x_in_thisblock_upper;
          ++x_in_thisblock) {
-      aggregated_sum =
-          feedfwd_coeff *
-              aggregated_sums_thisblock[x_in_thisblock +
-                                        threadIdx.x *
-                                            (blockDim.x + SHMEM_PAD_X)] +
-          feedback_coeff * prev_aggregated_sum; // Yes, threadIdx.x (not .y)
+      aggregated_sum = __fadd_rn(
+          __fmul_rn(feedfwd_coeff,
+                    aggregated_sums_thisblock[x_in_thisblock +
+                                              threadIdx.x *
+                                                  (blockDim.x + SHMEM_PAD_X)]),
+          __fmul_rn(feedback_coeff,
+                    prev_aggregated_sum)); // Yes, threadIdx.x (not .y)
       prev_aggregated_sum = aggregated_sum;
       aggregated_sums_thisblock[x_in_thisblock +
                                 threadIdx.x * (blockDim.x + SHMEM_PAD_X)] =
@@ -489,7 +492,8 @@ float recursivefilter_downright_gpu(const CpuTable &input, float feedfwd_coeff,
   // cudaDeviceSynchronize();
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&run_time_allruns_ms, start, stop);  // Yes in milliseconds
+  cudaEventElapsedTime(&run_time_allruns_ms, start,
+                       stop); // Yes in milliseconds
   const float run_time_1run_ms = run_time_allruns_ms / float(NUM_KERNEL_RUNS);
   Logger::new_line(
       "\nKernel execution time for " + std::to_string(input.num_cols()) + "x" +
